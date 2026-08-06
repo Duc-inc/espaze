@@ -1,0 +1,26 @@
+/* Steam-inspired dark palette, shared as CSS custom properties by every view. */
+:root {
+    --color-bg: #0e1420;
+    --color-bg-raised: #16202d;
+    --color-bg-sidebar: #0a0e14;
+    --color-bg-card: #1b2838;
+    --color-bg-card-hover: #24374d;
+
+    --color-border: #2a3f57;
+
+    --color-text: #c7d5e0;
+    --color-text-muted: #7c8fa3;
+    --color-text-bright: #ffffff;
+
+    --color-accent: #66c0f4;
+    --color-accent-strong: #1a9fff;
+    --color-success: #6fcf6f;
+    --color-danger: #e05c5c;
+
+    --radius-sm: 4px;
+    --radius-md: 8px;
+
+    --sidebar-width: 220px;
+
+    --font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+}

@@ -1,0 +1,77 @@
+@font-face {
+    font-family: 'Nunito';
+    src: url('../assets/fonts/nunito-v16-latin-regular.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-family);
+}
+
+#app {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+}
+
+.app__content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+button {
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--color-bg-card);
+    color: var(--color-text);
+    padding: 8px 14px;
+    transition: background 120ms ease;
+}
+
+button:hover {
+    background: var(--color-bg-card-hover);
+}
+
+button.primary {
+    background: var(--color-accent-strong);
+    color: var(--color-text-bright);
+}
+
+button.primary:hover {
+    background: var(--color-accent);
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--color-bg);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: var(--radius-sm);
+}
