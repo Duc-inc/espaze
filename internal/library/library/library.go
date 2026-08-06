@@ -2,6 +2,8 @@ package library
 
 import (
 	"fmt"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -93,6 +95,32 @@ func (l *Library) Remove(id string) error {
 	l.mu.Unlock()
 
 	return l.store.Save(snapshot)
+}
+
+// RemoveByPathPrefix drops every game whose file lives under folder (used
+// when the user stops tracking a library folder) and persists the result.
+// Returns how many games were removed.
+func (l *Library) RemoveByPathPrefix(folder string) (int, error) {
+	prefix := filepath.Clean(folder)
+
+	l.mu.Lock()
+	kept := l.games[:0:0]
+	removed := 0
+	for _, g := range l.games {
+		if strings.HasPrefix(filepath.Clean(g.Path), prefix) {
+			removed++
+			continue
+		}
+		kept = append(kept, g)
+	}
+	l.games = kept
+	snapshot := append([]game.Game(nil), l.games...)
+	l.mu.Unlock()
+
+	if err := l.store.Save(snapshot); err != nil {
+		return removed, fmt.Errorf("library: save: %w", err)
+	}
+	return removed, nil
 }
 
 // RecordSession updates play time/last-played for a game and persists it.

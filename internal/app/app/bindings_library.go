@@ -8,7 +8,7 @@ import (
 )
 
 // ListGames returns every game currently in the library, for the frontend's
-// Steam-like grid view.
+// grid view.
 func (a *App) ListGames() []game.Game {
 	return a.lib.List()
 }
@@ -40,6 +40,17 @@ func (a *App) AddLibraryFolder(path string) (int, error) {
 		return 0, err
 	}
 	return a.lib.ScanFolder(path)
+}
+
+// RemoveLibraryFolder stops tracking a folder and drops every game found
+// there from the library (the ROM files on disk are untouched).
+func (a *App) RemoveLibraryFolder(path string) error {
+	a.cfg.RemoveLibraryFolder(path)
+	if err := a.cfg.Save(a.cfgPath); err != nil {
+		return err
+	}
+	_, err := a.lib.RemoveByPathPrefix(path)
+	return err
 }
 
 // RescanLibrary re-walks every configured folder and returns how many new

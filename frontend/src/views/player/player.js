@@ -3,25 +3,28 @@ import {createCanvasRenderer} from './canvas.js';
 import {createSaveSlotsPanel} from './savestates.js';
 import {onFrame} from '../../api/events.js';
 import {launchGame, pauseGame, resumeGame, sendInput, stopGame} from '../../api/emulation.js';
-import {CHIP8_KEYMAP, KeyState} from '../../input/keymap.js';
+import {KeyState} from '../../input/keymap.js';
+import {buttonsForSystem} from '../../input/buttons.js';
+import {loadKeymap} from '../../input/storage.js';
 
 const CANVAS_WIDTH = 640;
 const CANVAS_HEIGHT = 320;
 
 /**
  * Mounts the in-app player: renders emulator frames to a canvas, forwards
- * keyboard input to the running core, and exposes pause/stop controls.
+ * keyboard input to the running core (using the right keymap for this
+ * game's system), and exposes pause/stop controls.
  * @param {HTMLElement} container
- * @param {string} gameId
+ * @param {{id:string, system:string}} game
  * @param {() => void} onExit called after the game has fully stopped
  */
-export async function mountPlayer(container, gameId, onExit) {
-    const root = buildLayout();
+export async function mountPlayer(container, game, onExit) {
+    const root = buildLayout(game.system);
     container.appendChild(root.el);
 
     const renderer = createCanvasRenderer(root.canvas);
     const unsubscribeFrame = onFrame((payload) => renderer.drawFrame(payload));
-    const keyState = new KeyState(CHIP8_KEYMAP);
+    const keyState = new KeyState(loadKeymap(game.system));
 
     let paused = false;
 
@@ -33,7 +36,9 @@ export async function mountPlayer(container, gameId, onExit) {
 
     root.pauseBtn.addEventListener('click', async () => {
         paused = !paused;
-        root.pauseBtn.textContent = paused ? 'Reprendre' : 'Pause';
+        root.pauseBtn.innerHTML = paused
+            ? '<i class="fa-solid fa-play"></i> Reprendre'
+            : '<i class="fa-solid fa-pause"></i> Pause';
         await (paused ? pauseGame() : resumeGame());
     });
 
@@ -51,7 +56,7 @@ export async function mountPlayer(container, gameId, onExit) {
         await stopGame();
     }
 
-    await launchGame(gameId);
+    await launchGame(game.id);
 
     return {cleanup};
 }
@@ -62,7 +67,7 @@ function forwardKey(event, keyState, apply) {
     sendInput(keyState.bitmask());
 }
 
-function buildLayout() {
+function buildLayout(system) {
     const el = document.createElement('div');
     el.className = 'player';
 
@@ -70,15 +75,17 @@ function buildLayout() {
     toolbar.className = 'player__toolbar';
 
     const backBtn = document.createElement('button');
-    backBtn.textContent = '← Bibliothèque';
+    backBtn.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Bibliothèque';
 
     const pauseBtn = document.createElement('button');
-    pauseBtn.textContent = 'Pause';
+    pauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i> Pause';
 
     const savesBtn = document.createElement('button');
-    savesBtn.textContent = 'Sauvegardes';
+    savesBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Sauvegardes';
 
-    toolbar.append(backBtn, pauseBtn, savesBtn);
+    const legend = buildLegend(system);
+
+    toolbar.append(backBtn, pauseBtn, savesBtn, legend);
 
     const savesPanel = createSaveSlotsPanel();
 
@@ -94,4 +101,35 @@ function buildLayout() {
     el.append(toolbar, savesPanel.el, stage);
 
     return {el, canvas, backBtn, pauseBtn, savesBtn, savesPanel};
+}
+
+function buildLegend(system) {
+    const legend = document.createElement('div');
+    legend.className = 'player__legend';
+
+    const keymap = loadKeymap(system);
+    for (const {bit, label} of buttonsForSystem(system)) {
+        const codes = Object.entries(keymap)
+            .filter(([, assignedBit]) => assignedBit === bit)
+            .map(([code]) => formatCode(code));
+        if (codes.length === 0) continue;
+
+        const entry = document.createElement('span');
+        entry.className = 'player__legend-entry';
+        entry.innerHTML = `<kbd>${codes.join('/')}</kbd> ${label}`;
+        legend.appendChild(entry);
+    }
+    return legend;
+}
+
+const CODE_LABELS = {
+    ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→',
+    Enter: 'Entrée', ShiftLeft: 'Maj', ShiftRight: 'Maj',
+};
+
+function formatCode(code) {
+    if (CODE_LABELS[code]) return CODE_LABELS[code];
+    if (code.startsWith('Key')) return code.slice(3);
+    if (code.startsWith('Digit')) return code.slice(5);
+    return code;
 }

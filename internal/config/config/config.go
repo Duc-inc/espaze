@@ -11,6 +11,8 @@ import (
 // Config holds every user-adjustable setting for the app.
 type Config struct {
 	LibraryFolders []string `json:"libraryFolders"`
+	WindowWidth    int      `json:"windowWidth,omitempty"`
+	WindowHeight   int      `json:"windowHeight,omitempty"`
 }
 
 // Load reads settings from disk, returning defaults if the file is missing.
@@ -47,4 +49,16 @@ func (c *Config) AddLibraryFolder(path string) {
 		}
 	}
 	c.LibraryFolders = append(c.LibraryFolders, path)
+}
+
+// RemoveLibraryFolder stops a folder from being scanned in the future.
+// Games already found there stay in the library until the caller also
+// removes them (see library.Library.RemoveByPathPrefix).
+func (c *Config) RemoveLibraryFolder(path string) {
+	for i, existing := range c.LibraryFolders {
+		if existing == path {
+			c.LibraryFolders = append(c.LibraryFolders[:i], c.LibraryFolders[i+1:]...)
+			return
+		}
+	}
 }

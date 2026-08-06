@@ -7,6 +7,7 @@ import {
     LibraryFolders,
     ListGames,
     RemoveGame,
+    RemoveLibraryFolder,
     RescanLibrary,
 } from '../../wailsjs/go/app/App';
 
@@ -37,4 +38,8 @@ export async function rescanLibrary() {
 
 export async function removeGame(id) {
     return await RemoveGame(id);
+}
+
+export async function removeLibraryFolder(path) {
+    return await RemoveLibraryFolder(path);
 }

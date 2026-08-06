@@ -1,7 +1,11 @@
 import './game-card.css';
+import {systemColor} from '../../systems/colors.js';
 
 /**
- * Builds a single Steam-like tile for one library entry.
+ * Builds a single grid tile for one library entry. There's
+ * no real cover art (no store, no scraping), so the cover is the
+ * system's accent color with the title overlaid at the bottom, the same
+ * treatment the horizontal shelves use.
  * @param {{id:string,title:string,system:string}} game
  * @param {(id:string)=>void} onLaunch
  * @returns {HTMLElement}
@@ -11,33 +15,29 @@ export function createGameCard(game, onLaunch) {
     card.className = 'game-card';
     card.dataset.gameId = game.id;
 
-    const artwork = document.createElement('div');
-    artwork.className = 'game-card__artwork';
-    artwork.textContent = initials(game.title);
+    const color = systemColor(game.system);
 
-    const body = document.createElement('div');
-    body.className = 'game-card__body';
+    const cover = document.createElement('div');
+    cover.className = 'game-card__cover';
+    cover.style.background = `linear-gradient(135deg, ${color}, var(--color-bg-card) 75%)`;
 
     const title = document.createElement('div');
     title.className = 'game-card__title';
     title.textContent = game.title;
     title.title = game.title;
+    cover.appendChild(title);
 
-    const system = document.createElement('div');
-    system.className = 'game-card__system';
+    const meta = document.createElement('div');
+    meta.className = 'game-card__meta';
+    const dot = document.createElement('span');
+    dot.className = 'game-card__dot';
+    dot.style.background = color;
+    const system = document.createElement('span');
     system.textContent = game.system;
+    meta.append(dot, system);
 
-    body.append(title, system);
-    card.append(artwork, body);
-
-    card.addEventListener('click', () => onLaunch(game.id));
+    card.append(cover, meta);
+    card.addEventListener('click', () => onLaunch(game));
 
     return card;
-}
-
-function initials(title) {
-    const words = title.trim().split(/\s+/).filter(Boolean);
-    if (words.length === 0) return '?';
-    if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-    return (words[0][0] + words[1][0]).toUpperCase();
 }

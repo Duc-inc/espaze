@@ -46,6 +46,10 @@ export function RemoveGame(arg1) {
   return window['go']['app']['App']['RemoveGame'](arg1);
 }
 
+export function RemoveLibraryFolder(arg1) {
+  return window['go']['app']['App']['RemoveLibraryFolder'](arg1);
+}
+
 export function RescanLibrary() {
   return window['go']['app']['App']['RescanLibrary']();
 }

@@ -26,6 +26,8 @@ export function PauseGame():Promise<void>;
 
 export function RemoveGame(arg1:string):Promise<void>;
 
+export function RemoveLibraryFolder(arg1:string):Promise<void>;
+
 export function RescanLibrary():Promise<number>;
 
 export function ResumeGame():Promise<void>;

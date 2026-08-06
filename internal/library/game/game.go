@@ -3,7 +3,7 @@ package game
 import "time"
 
 // Game is one entry in the user's library: a ROM file paired with the
-// system core that can run it, plus everything the Steam-like UI shows.
+// system core that can run it, plus everything the UI shows about it.
 type Game struct {
 	ID              string     `json:"id"`
 	Title           string     `json:"title"`

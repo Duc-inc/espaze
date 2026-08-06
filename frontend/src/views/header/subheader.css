@@ -1,0 +1,100 @@
+.subheader {
+    flex: 0 0 auto;
+    height: 40px;
+    margin-bottom: 6px;
+    background: #171b22;
+    box-shadow: 0 1px 10px rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    gap: 10px;
+    color: #c8d1dc;
+}
+
+.subheader__history {
+    display: flex;
+    gap: 2px;
+    color: #687381;
+}
+
+.subheader__history button {
+    width: 26px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    background: transparent;
+    color: #697482;
+    padding: 0;
+    font-size: 0.85rem;
+}
+
+.subheader__history button i {
+    margin-right: 0;
+}
+
+.subheader__history button:not(:disabled):hover {
+    color: #d9e3ed;
+}
+
+.subheader__nav {
+    display: flex;
+    gap: 20px;
+    height: 100%;
+    align-items: center;
+}
+
+.subheader__item {
+    background: transparent;
+    border-radius: 0;
+    height: 100%;
+    padding: 0 2px;
+    color: #c8d1dc;
+    font-weight: 700;
+    font-size: 0.85rem;
+    position: relative;
+}
+
+.subheader__item.active {
+    color: #4db8ff;
+}
+
+.subheader__item.active::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 2px;
+    height: 2px;
+    background: #4db8ff;
+}
+
+.subheader__right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    height: 100%;
+    gap: 6px;
+}
+
+.subheader__icon-btn {
+    height: 26px;
+    min-width: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    background: transparent;
+    color: #778492;
+    font-size: 0.95rem;
+    padding: 0 10px;
+}
+
+.subheader__icon-btn i {
+    margin-right: 0;
+}
+
+.subheader__icon-btn:hover {
+    color: #fff;
+}
