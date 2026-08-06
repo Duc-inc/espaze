@@ -17,6 +17,7 @@ import (
 	// registry. Every future system gets the same one-line hookup here.
 	_ "github.com/Duc-inc/espaze/internal/systems/chip8"
 	_ "github.com/Duc-inc/espaze/internal/systems/gameboy"
+	_ "github.com/Duc-inc/espaze/internal/systems/nes"
 	_ "github.com/Duc-inc/espaze/internal/systems/schip"
 )
 

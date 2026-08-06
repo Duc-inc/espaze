@@ -25,16 +25,31 @@ const GAMEBOY_DEFAULT_KEYMAP = {
     KeyX: 4, KeyZ: 5, ShiftLeft: 6, Enter: 7,
 };
 
+// NES bit layout matches internal/systems/nes/memory/controller.go's
+// constants exactly (A=0, B=1, Select=2, Start=3, Up=4, Down=5, Left=6,
+// Right=7), and reuses the same X/Z-for-A/B convention as Game Boy above.
+const NES_BUTTONS = [
+    {bit: 4, label: 'Haut'}, {bit: 5, label: 'Bas'}, {bit: 6, label: 'Gauche'}, {bit: 7, label: 'Droite'},
+    {bit: 0, label: 'A'}, {bit: 1, label: 'B'}, {bit: 2, label: 'Select'}, {bit: 3, label: 'Start'},
+];
+
+const NES_DEFAULT_KEYMAP = {
+    ArrowUp: 4, ArrowDown: 5, ArrowLeft: 6, ArrowRight: 7,
+    KeyX: 0, KeyZ: 1, ShiftLeft: 2, Enter: 3,
+};
+
 export const SYSTEM_BUTTONS = {
     chip8: CHIP8_BUTTONS,
     schip: CHIP8_BUTTONS,
     gameboy: GAMEBOY_BUTTONS,
+    nes: NES_BUTTONS,
 };
 
 export const DEFAULT_KEYMAPS = {
     chip8: CHIP8_DEFAULT_KEYMAP,
     schip: CHIP8_DEFAULT_KEYMAP,
     gameboy: GAMEBOY_DEFAULT_KEYMAP,
+    nes: NES_DEFAULT_KEYMAP,
 };
 
 export function buttonsForSystem(systemId) {
@@ -62,10 +77,17 @@ const GAMEBOY_GAMEPAD_MAP = {
     8: 6, 9: 7,                 // Back -> Select, Start -> Start
 };
 
+const NES_GAMEPAD_MAP = {
+    12: 4, 13: 5, 14: 6, 15: 7, // d-pad -> Up/Down/Left/Right
+    0: 0, 1: 1,                 // A -> A, B -> B
+    8: 2, 9: 3,                 // Back -> Select, Start -> Start
+};
+
 const DEFAULT_GAMEPAD_MAPS = {
     chip8: CHIP8_GAMEPAD_MAP,
     schip: CHIP8_GAMEPAD_MAP,
     gameboy: GAMEBOY_GAMEPAD_MAP,
+    nes: NES_GAMEPAD_MAP,
 };
 
 export function gamepadMapForSystem(systemId) {
