@@ -1,11 +1,12 @@
 import './game-card.css';
 import {systemColor} from '../../systems/colors.js';
+import {applyCoverArt} from '../cover-art.js';
 
 /**
- * Builds a single grid tile for one library entry. There's
- * no real cover art (no store, no scraping), so the cover is the
- * system's accent color with the title overlaid at the bottom, the same
- * treatment the horizontal shelves use.
+ * Builds a single grid tile for one library entry. Defaults to the
+ * system's accent color with the title overlaid at the bottom (no
+ * store to scrape covers from), but swaps in a real cover image if the
+ * user placed one next to the ROM.
  * @param {{id:string,title:string,system:string}} game
  * @param {(id:string)=>void} onLaunch
  * @returns {HTMLElement}
@@ -38,6 +39,8 @@ export function createGameCard(game, onLaunch) {
 
     card.append(cover, meta);
     card.addEventListener('click', () => onLaunch(game));
+
+    applyCoverArt(cover, game);
 
     return card;
 }

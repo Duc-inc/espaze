@@ -28,13 +28,58 @@ export async function createApp(root) {
     root.append(headerContainer, subheaderContainer, content, footerContainer);
 
     mountHeader(headerContainer);
-    const subheader = mountSubheader(subheaderContainer, () => showLibrary(), () => showSettings());
+    const subheader = mountSubheader(
+        subheaderContainer,
+        () => showLibrary(),
+        () => showSettings(),
+        () => goHistoryBack(),
+        () => goHistoryForward(),
+    );
     mountFooter(footerContainer);
 
     let activePlayer = null;
     let games = [];
     let shellSidebar = null;
     let shellStage = null;
+
+    // Every view shown through recordHistory() below can be replayed by
+    // storing the closure that re-renders it - restoringHistory guards
+    // against a replay itself re-pushing a new entry.
+    let history = [];
+    let historyIndex = -1;
+    let restoringHistory = false;
+
+    function recordHistory(replay) {
+        if (restoringHistory) return;
+        history = history.slice(0, historyIndex + 1);
+        history.push(replay);
+        historyIndex = history.length - 1;
+        subheader.setHistoryState(historyIndex > 0, historyIndex < history.length - 1);
+    }
+
+    async function goHistoryBack() {
+        if (historyIndex <= 0) return;
+        historyIndex -= 1;
+        restoringHistory = true;
+        try {
+            await history[historyIndex]();
+        } finally {
+            restoringHistory = false;
+            subheader.setHistoryState(historyIndex > 0, historyIndex < history.length - 1);
+        }
+    }
+
+    async function goHistoryForward() {
+        if (historyIndex >= history.length - 1) return;
+        historyIndex += 1;
+        restoringHistory = true;
+        try {
+            await history[historyIndex]();
+        } finally {
+            restoringHistory = false;
+            subheader.setHistoryState(historyIndex > 0, historyIndex < history.length - 1);
+        }
+    }
 
     async function ensureShell() {
         subheaderContainer.style.display = '';
@@ -83,6 +128,7 @@ export async function createApp(root) {
         await refreshGames();
         shellStage.innerHTML = '';
         mountLibraryMain(shellStage, games, (game) => showDetail(game));
+        recordHistory(() => showLibrary());
     }
 
     async function showGridView() {
@@ -95,13 +141,15 @@ export async function createApp(root) {
         await refreshGames();
         shellStage.innerHTML = '';
         mountGroupedGrid(shellStage, games, (game) => showDetail(game));
+        recordHistory(() => showGridView());
     }
 
     async function showDetail(game) {
         subheader.setActive('library');
         await ensureShell();
         shellStage.innerHTML = '';
-        mountGameDetail(shellStage, game, () => showPlayer(game), showLibrary);
+        mountGameDetail(shellStage, game, () => showPlayer(game));
+        recordHistory(() => showDetail(game));
     }
 
     async function showSettings() {
@@ -115,6 +163,7 @@ export async function createApp(root) {
         shellStage = null;
         content.innerHTML = '';
         mountSettings(content, showLibrary);
+        recordHistory(() => showSettings());
     }
 
     async function showPlayer(game) {

@@ -14,8 +14,19 @@
     background: var(--color-bg-header);
 }
 
-.player__legend {
+.player__gamepad-status {
     margin-left: auto;
+    color: var(--color-text-muted);
+    opacity: 0.4;
+    font-size: 0.95rem;
+}
+
+.player__gamepad-status.connected {
+    color: var(--color-success);
+    opacity: 1;
+}
+
+.player__legend {
     display: flex;
     align-items: center;
     gap: 14px;

@@ -14,6 +14,10 @@ export function BrowseForLibraryFolder() {
   return window['go']['app']['App']['BrowseForLibraryFolder']();
 }
 
+export function GetArtwork(arg1) {
+  return window['go']['app']['App']['GetArtwork'](arg1);
+}
+
 export function LaunchGame(arg1) {
   return window['go']['app']['App']['LaunchGame'](arg1);
 }

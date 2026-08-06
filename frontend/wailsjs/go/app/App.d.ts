@@ -10,6 +10,8 @@ export function AvailableSystems():Promise<Array<core.Metadata>>;
 
 export function BrowseForLibraryFolder():Promise<string>;
 
+export function GetArtwork(arg1:string):Promise<string>;
+
 export function LaunchGame(arg1:string):Promise<void>;
 
 export function LibraryFolders():Promise<Array<string>>;

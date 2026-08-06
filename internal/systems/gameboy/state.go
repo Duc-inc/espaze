@@ -5,6 +5,7 @@ import (
 	"encoding/gob"
 	"fmt"
 
+	"github.com/Duc-inc/espaze/internal/systems/gameboy/apu"
 	"github.com/Duc-inc/espaze/internal/systems/gameboy/cpu"
 	"github.com/Duc-inc/espaze/internal/systems/gameboy/joypad"
 	"github.com/Duc-inc/espaze/internal/systems/gameboy/memory"
@@ -22,6 +23,7 @@ type snapshot struct {
 	PPU    ppu.Snapshot
 	Timer  timer.Snapshot
 	Joypad joypad.Snapshot
+	APU    apu.Snapshot
 }
 
 // SaveState implements core.Core.
@@ -37,6 +39,7 @@ func (gb *GameBoy) SaveState() ([]byte, error) {
 		PPU:    gb.video.Snapshot(),
 		Timer:  gb.tmr.Snapshot(),
 		Joypad: gb.pad.Snapshot(),
+		APU:    gb.sound.Snapshot(),
 	}
 
 	var buf bytes.Buffer
@@ -63,5 +66,6 @@ func (gb *GameBoy) LoadState(data []byte) error {
 	gb.video.Restore(snap.PPU)
 	gb.tmr.Restore(snap.Timer)
 	gb.pad.Restore(snap.Joypad)
+	gb.sound.Restore(snap.APU)
 	return nil
 }

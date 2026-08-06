@@ -1,6 +1,12 @@
 package app
 
 import (
+	"encoding/base64"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"github.com/Duc-inc/espaze/internal/emulation/core"
@@ -70,4 +76,31 @@ func (a *App) RescanLibrary() (int, error) {
 // RemoveGame removes a game from the library (the ROM file is untouched).
 func (a *App) RemoveGame(id string) error {
 	return a.lib.Remove(id)
+}
+
+// GetArtwork returns a game's cover art as a data URI the frontend can
+// drop straight into an <img src>, or "" if it has none - there's no
+// store to scrape covers from, so this only ever reflects an image file
+// a user placed next to the ROM themselves (see game.FindAdjacentArtwork).
+func (a *App) GetArtwork(id string) (string, error) {
+	g, ok := a.lib.Get(id)
+	if !ok || g.ArtworkPath == "" {
+		return "", nil
+	}
+
+	data, err := os.ReadFile(g.ArtworkPath)
+	if err != nil {
+		return "", fmt.Errorf("app: read artwork: %w", err)
+	}
+
+	return fmt.Sprintf("data:%s;base64,%s", mimeForExt(g.ArtworkPath), base64.StdEncoding.EncodeToString(data)), nil
+}
+
+func mimeForExt(path string) string {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	default:
+		return "image/png"
+	}
 }

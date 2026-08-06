@@ -1,5 +1,6 @@
 import './game-row.css';
 import {systemColor} from '../../systems/colors.js';
+import {applyCoverArt} from '../cover-art.js';
 
 /**
  * Builds one horizontal shelf ("Ajoutés récemment", "Jeux récents"): a
@@ -68,6 +69,9 @@ function createCard(game, onLaunch, variant) {
 
     card.append(cover, meta);
     card.addEventListener('click', () => onLaunch(game));
+
+    applyCoverArt(cover, game);
+
     return card;
 }
 

@@ -9,11 +9,12 @@ import (
 // buildGame turns a freshly scanned file into a brand new library entry.
 func buildGame(f ScannedFile) game.Game {
 	return game.Game{
-		ID:      game.IDFromPath(f.Path),
-		Title:   game.TitleFromFilename(f.Path),
-		System:  f.System,
-		Path:    f.Path,
-		AddedAt: time.Now(),
+		ID:          game.IDFromPath(f.Path),
+		Title:       game.TitleFromFilename(f.Path),
+		System:      f.System,
+		Path:        f.Path,
+		ArtworkPath: game.FindAdjacentArtwork(f.Path),
+		AddedAt:     time.Now(),
 	}
 }
 

@@ -44,3 +44,30 @@ export function buttonsForSystem(systemId) {
 export function defaultKeymapForSystem(systemId) {
     return DEFAULT_KEYMAPS[systemId] ?? CHIP8_DEFAULT_KEYMAP;
 }
+
+// Default gamepad binding per system: standard-mapping button index -> bit.
+// Game Boy's 8 buttons map onto a controller's d-pad + face buttons +
+// select/start almost exactly. CHIP-8/Super-CHIP have far more keys than
+// any controller has buttons, so only the common "arcade" convention
+// (2/8/4/6 for up/down/left/right, 5 as the main action key) gets a
+// default; the rest stay keyboard-only.
+const CHIP8_GAMEPAD_MAP = {
+    12: 0x2, 13: 0x8, 14: 0x4, 15: 0x6, // d-pad -> up/down/left/right
+    0: 0x5, 1: 0x0,                     // A -> 5 (action), B -> 0
+};
+
+const GAMEBOY_GAMEPAD_MAP = {
+    12: 2, 13: 3, 14: 1, 15: 0, // d-pad -> Up/Down/Left/Right
+    0: 4, 1: 5,                 // A -> A, B -> B
+    8: 6, 9: 7,                 // Back -> Select, Start -> Start
+};
+
+const DEFAULT_GAMEPAD_MAPS = {
+    chip8: CHIP8_GAMEPAD_MAP,
+    schip: CHIP8_GAMEPAD_MAP,
+    gameboy: GAMEBOY_GAMEPAD_MAP,
+};
+
+export function gamepadMapForSystem(systemId) {
+    return DEFAULT_GAMEPAD_MAPS[systemId] ?? CHIP8_GAMEPAD_MAP;
+}

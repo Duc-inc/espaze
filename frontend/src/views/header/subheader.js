@@ -10,19 +10,24 @@ const NAV_ITEMS = [
  * @param {HTMLElement} container
  * @param {(viewId:string)=>void} onNavigate
  * @param {()=>void} onSettings
+ * @param {()=>void} onHistoryBack
+ * @param {()=>void} onHistoryForward
  */
-export function mountSubheader(container, onNavigate, onSettings) {
+export function mountSubheader(container, onNavigate, onSettings, onHistoryBack, onHistoryForward) {
     const el = document.createElement('div');
     el.className = 'subheader';
 
     const history = document.createElement('div');
     history.className = 'subheader__history';
-    for (const icon of ['fa-chevron-left', 'fa-chevron-right']) {
-        const btn = document.createElement('button');
-        btn.innerHTML = `<i class="fa-solid ${icon}"></i>`;
-        btn.disabled = true;
-        history.appendChild(btn);
-    }
+    const backBtn = document.createElement('button');
+    backBtn.innerHTML = '<i class="fa-solid fa-chevron-left"></i>';
+    backBtn.disabled = true;
+    backBtn.addEventListener('click', () => onHistoryBack());
+    const forwardBtn = document.createElement('button');
+    forwardBtn.innerHTML = '<i class="fa-solid fa-chevron-right"></i>';
+    forwardBtn.disabled = true;
+    forwardBtn.addEventListener('click', () => onHistoryForward());
+    history.append(backBtn, forwardBtn);
 
     const nav = document.createElement('nav');
     nav.className = 'subheader__nav';
@@ -53,6 +58,10 @@ export function mountSubheader(container, onNavigate, onSettings) {
             for (const [id, btn] of buttons) {
                 btn.classList.toggle('active', id === viewId);
             }
+        },
+        setHistoryState(canGoBack, canGoForward) {
+            backBtn.disabled = !canGoBack;
+            forwardBtn.disabled = !canGoForward;
         },
     };
 }

@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"github.com/Duc-inc/espaze/internal/systems/gameboy/apu"
 	"github.com/Duc-inc/espaze/internal/systems/gameboy/joypad"
 	"github.com/Duc-inc/espaze/internal/systems/gameboy/ppu"
 	"github.com/Duc-inc/espaze/internal/systems/gameboy/timer"
@@ -25,6 +26,7 @@ type MMU struct {
 	ppu *ppu.PPU
 	tmr *timer.Timer
 	pad *joypad.Joypad
+	snd *apu.APU
 
 	wram [0x2000]byte
 	hram [0x7F]byte
@@ -32,14 +34,13 @@ type MMU struct {
 	ifReg byte // 0xFF0F
 	ieReg byte // 0xFFFF
 
-	serial [2]byte  // 0xFF01-0xFF02, stubbed
-	sound  [0x30]byte // 0xFF10-0xFF3F, stubbed (no audio synthesis yet)
+	serial [2]byte // 0xFF01-0xFF02, stubbed
 }
 
-// New wires the MMU to the cartridge controller and the three components
+// New wires the MMU to the cartridge controller and the four components
 // it needs to forward register access to.
-func New(mbc MBC, p *ppu.PPU, t *timer.Timer, j *joypad.Joypad) *MMU {
-	return &MMU{mbc: mbc, ppu: p, tmr: t, pad: j}
+func New(mbc MBC, p *ppu.PPU, t *timer.Timer, j *joypad.Joypad, a *apu.APU) *MMU {
+	return &MMU{mbc: mbc, ppu: p, tmr: t, pad: j, snd: a}
 }
 
 // RequestInterrupt sets one or more bits in IF, called by gameboy.go after
@@ -74,7 +75,7 @@ func (m *MMU) Read(addr uint16) byte {
 	case addr == 0xFF0F:
 		return m.ifReg | 0xE0
 	case addr <= 0xFF3F:
-		return m.sound[addr-0xFF10]
+		return m.snd.ReadRegister(addr)
 	case addr <= 0xFF4B:
 		return m.ppu.ReadRegister(addr)
 	case addr <= 0xFF7F:
@@ -114,7 +115,7 @@ func (m *MMU) Write(addr uint16, v byte) {
 	case addr == 0xFF46:
 		m.oamDMA(v)
 	case addr <= 0xFF3F:
-		m.sound[addr-0xFF10] = v
+		m.snd.WriteRegister(addr, v)
 	case addr <= 0xFF4B:
 		m.ppu.WriteRegister(addr, v)
 	case addr <= 0xFF7F:

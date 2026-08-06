@@ -8,16 +8,10 @@ import {systemColor} from '../../systems/colors.js';
  * @param {HTMLElement} container
  * @param {object} game
  * @param {() => void} onPlay
- * @param {() => void} onBack
  */
-export function mountGameDetail(container, game, onPlay, onBack) {
+export function mountGameDetail(container, game, onPlay) {
     const root = document.createElement('div');
     root.className = 'detail';
-
-    const backBtn = document.createElement('button');
-    backBtn.className = 'detail__back';
-    backBtn.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Bibliothèque';
-    backBtn.addEventListener('click', onBack);
 
     const hero = document.createElement('div');
     hero.className = 'detail__hero';
@@ -51,7 +45,7 @@ export function mountGameDetail(container, game, onPlay, onBack) {
         buildStat('Temps de jeu total', formatPlaytime(game.playTimeSeconds)),
     );
 
-    root.append(backBtn, hero, stats);
+    root.append(hero, stats);
     container.appendChild(root);
 }
 

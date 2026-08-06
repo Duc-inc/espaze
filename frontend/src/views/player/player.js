@@ -4,8 +4,9 @@ import {createSaveSlotsPanel} from './savestates.js';
 import {onFrame} from '../../api/events.js';
 import {launchGame, pauseGame, resumeGame, sendInput, stopGame} from '../../api/emulation.js';
 import {KeyState} from '../../input/keymap.js';
-import {buttonsForSystem} from '../../input/buttons.js';
+import {buttonsForSystem, gamepadMapForSystem} from '../../input/buttons.js';
 import {loadKeymap} from '../../input/storage.js';
+import {GamepadState, hasGamepad} from '../../input/gamepad.js';
 
 const CANVAS_WIDTH = 640;
 const CANVAS_HEIGHT = 320;
@@ -25,14 +26,40 @@ export async function mountPlayer(container, game, onExit) {
     const renderer = createCanvasRenderer(root.canvas);
     const unsubscribeFrame = onFrame((payload) => renderer.drawFrame(payload));
     const keyState = new KeyState(loadKeymap(game.system));
+    const gamepadState = new GamepadState(gamepadMapForSystem(game.system));
 
     let paused = false;
 
-    const handleKeyDown = (e) => forwardKey(e, keyState, keyState.handleKeyDown.bind(keyState));
-    const handleKeyUp = (e) => forwardKey(e, keyState, keyState.handleKeyUp.bind(keyState));
+    const handleKeyDown = (e) => {
+        if (!keyState.handleKeyDown(e.code)) return;
+        e.preventDefault();
+    };
+    const handleKeyUp = (e) => {
+        if (!keyState.handleKeyUp(e.code)) return;
+        e.preventDefault();
+    };
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+
+    const updateGamepadStatus = () => root.gamepadStatus.classList.toggle('connected', hasGamepad());
+    updateGamepadStatus();
+    window.addEventListener('gamepadconnected', updateGamepadStatus);
+    window.addEventListener('gamepaddisconnected', updateGamepadStatus);
+
+    // The Gamepad API has no press/release events, so input has to be
+    // polled every frame - keyboard state rides along on the same loop
+    // so both sources combine into one bitmask sent only when it changes.
+    let lastMask = -1;
+    let pollHandle = requestAnimationFrame(pollInput);
+    function pollInput() {
+        const mask = keyState.bitmask() | gamepadState.bitmask();
+        if (mask !== lastMask) {
+            lastMask = mask;
+            sendInput(mask);
+        }
+        pollHandle = requestAnimationFrame(pollInput);
+    }
 
     root.pauseBtn.addEventListener('click', async () => {
         paused = !paused;
@@ -50,8 +77,11 @@ export async function mountPlayer(container, game, onExit) {
     });
 
     async function cleanup() {
+        cancelAnimationFrame(pollHandle);
         window.removeEventListener('keydown', handleKeyDown);
         window.removeEventListener('keyup', handleKeyUp);
+        window.removeEventListener('gamepadconnected', updateGamepadStatus);
+        window.removeEventListener('gamepaddisconnected', updateGamepadStatus);
         unsubscribeFrame();
         await stopGame();
     }
@@ -59,12 +89,6 @@ export async function mountPlayer(container, game, onExit) {
     await launchGame(game.id);
 
     return {cleanup};
-}
-
-function forwardKey(event, keyState, apply) {
-    if (!apply(event.code)) return;
-    event.preventDefault();
-    sendInput(keyState.bitmask());
 }
 
 function buildLayout(system) {
@@ -83,9 +107,14 @@ function buildLayout(system) {
     const savesBtn = document.createElement('button');
     savesBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Sauvegardes';
 
+    const gamepadStatus = document.createElement('span');
+    gamepadStatus.className = 'player__gamepad-status';
+    gamepadStatus.title = 'Manette';
+    gamepadStatus.innerHTML = '<i class="fa-solid fa-gamepad"></i>';
+
     const legend = buildLegend(system);
 
-    toolbar.append(backBtn, pauseBtn, savesBtn, legend);
+    toolbar.append(backBtn, pauseBtn, savesBtn, gamepadStatus, legend);
 
     const savesPanel = createSaveSlotsPanel();
 
@@ -100,7 +129,7 @@ function buildLayout(system) {
     stage.appendChild(canvas);
     el.append(toolbar, savesPanel.el, stage);
 
-    return {el, canvas, backBtn, pauseBtn, savesBtn, savesPanel};
+    return {el, canvas, backBtn, pauseBtn, savesBtn, savesPanel, gamepadStatus};
 }
 
 function buildLegend(system) {

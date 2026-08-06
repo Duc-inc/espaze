@@ -4,6 +4,7 @@ import {
     AddLibraryFolder,
     AvailableSystems,
     BrowseForLibraryFolder,
+    GetArtwork,
     LibraryFolders,
     ListGames,
     RemoveGame,
@@ -42,4 +43,8 @@ export async function removeGame(id) {
 
 export async function removeLibraryFolder(path) {
     return await RemoveLibraryFolder(path);
+}
+
+export async function getArtwork(id) {
+    return (await GetArtwork(id)) || null;
 }

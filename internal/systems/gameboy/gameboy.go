@@ -7,6 +7,7 @@ import (
 	emuinput "github.com/Duc-inc/espaze/internal/emulation/input"
 	"github.com/Duc-inc/espaze/internal/emulation/video"
 
+	"github.com/Duc-inc/espaze/internal/systems/gameboy/apu"
 	"github.com/Duc-inc/espaze/internal/systems/gameboy/cpu"
 	"github.com/Duc-inc/espaze/internal/systems/gameboy/joypad"
 	"github.com/Duc-inc/espaze/internal/systems/gameboy/memory"
@@ -23,10 +24,8 @@ const systemID = "gameboy"
 const cyclesPerFrame = 154 * 456
 const cpuClockHz = 4194304.0
 
-// GameBoy wires the CPU, MMU, PPU, timer and joypad together into a
-// core.Core implementation. Audio is not implemented yet (see DrainAudio)
-// - every other subsystem (CPU opcodes, PPU rendering, MBC0/MBC1
-// banking, timer, joypad) is a from-scratch implementation of the
+// GameBoy wires the CPU, MMU, PPU, timer, joypad and APU together into a
+// core.Core implementation - a from-scratch implementation of the
 // documented DMG hardware behavior.
 type GameBoy struct {
 	mbc    memory.MBC
@@ -35,6 +34,7 @@ type GameBoy struct {
 	video  *ppu.PPU
 	tmr    *timer.Timer
 	pad    *joypad.Joypad
+	sound  *apu.APU
 	loaded bool
 }
 
@@ -45,6 +45,7 @@ func New() core.Core {
 		video: ppu.New(),
 		tmr:   timer.New(),
 		pad:   joypad.New(),
+		sound: apu.New(),
 	}
 }
 
@@ -78,11 +79,12 @@ func (gb *GameBoy) LoadROM(data []byte) error {
 	gb.video.Reset()
 	gb.tmr.Reset()
 	gb.pad.Reset()
+	gb.sound.Reset()
 
 	gb.mbc = memory.NewMBC(cart)
-	gb.mmu = memory.New(gb.mbc, gb.video, gb.tmr, gb.pad)
-	// cpu.New() pokes the post-boot I/O register values (LCDC, BGP, ...)
-	// through the MMU, so it must run after the components above are
+	gb.mmu = memory.New(gb.mbc, gb.video, gb.tmr, gb.pad, gb.sound)
+	// cpu.New() pokes the post-boot I/O register values (LCDC, BGP, NR52
+	// ...) through the MMU, so it must run after the components above are
 	// wired up and reset, not before - otherwise their own Reset calls
 	// would wipe out what it just wrote.
 	gb.proc = cpu.New(gb.mmu)
@@ -98,13 +100,14 @@ func (gb *GameBoy) Reset() {
 	gb.video.Reset()
 	gb.tmr.Reset()
 	gb.pad.Reset()
+	gb.sound.Reset()
 	// Reset last: it re-pokes the post-boot I/O register values, which
 	// must win over the component resets above.
 	gb.proc.Reset()
 }
 
-// StepFrame implements core.Core: runs the CPU/PPU/timer together for
-// exactly one LCD refresh's worth of T-cycles.
+// StepFrame implements core.Core: runs the CPU/PPU/timer/APU together
+// for exactly one LCD refresh's worth of T-cycles.
 func (gb *GameBoy) StepFrame() error {
 	if !gb.loaded {
 		return nil
@@ -119,6 +122,7 @@ func (gb *GameBoy) StepFrame() error {
 			interrupts |= memory.InterruptTimer
 		}
 		gb.mmu.RequestInterrupt(interrupts)
+		gb.sound.Step(cycles)
 
 		spent += cycles
 	}
@@ -128,10 +132,10 @@ func (gb *GameBoy) StepFrame() error {
 // FrameBuffer implements core.Core.
 func (gb *GameBoy) FrameBuffer() *video.FrameBuffer { return gb.video.FrameBuffer() }
 
-// DrainAudio implements core.Core. The APU (4 sound channels) hasn't
-// been built yet, so this always reports silence - a disclosed gap, not
-// an oversight: every other subsystem is fully implemented.
-func (gb *GameBoy) DrainAudio() ([]int16, int) { return nil, 44100 }
+// DrainAudio implements core.Core.
+func (gb *GameBoy) DrainAudio() ([]int16, int) {
+	return gb.sound.DrainSamples(), apu.SampleRate
+}
 
 // SetInput implements core.Core.
 func (gb *GameBoy) SetInput(state emuinput.State) { gb.pad.SetButtons(state) }
