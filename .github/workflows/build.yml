@@ -3,6 +3,7 @@ name: Build
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
     branches: [main]
 
@@ -49,12 +50,15 @@ jobs:
           - os: windows-latest
             artifact-name: espaze-windows
             artifact-path: build/bin/*.exe
+            build-flags: -nsis
           - os: macos-latest
             artifact-name: espaze-macos
             artifact-path: build/bin/*.app
+            build-flags: ''
           - os: ubuntu-22.04
             artifact-name: espaze-linux
             artifact-path: build/bin/espaze
+            build-flags: ''
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -79,11 +83,30 @@ jobs:
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
+      # windows-latest ships NSIS preinstalled, so -nsis (producing an
+      # installer alongside the raw .exe) needs no extra setup here.
       - name: Build
-        run: wails build
+        run: wails build ${{ matrix.build-flags }}
 
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact-name }}
           path: ${{ matrix.artifact-path }}
           if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true

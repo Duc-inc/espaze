@@ -1,6 +1,8 @@
 import {availableSystems} from '../../api/games.js';
 import {systemColor} from '../../systems/colors.js';
 import {APP_VERSION} from '../../version.js';
+import {t} from '../../i18n/i18n.js';
+import {loadAppLocale} from '../../i18n/storage.js';
 
 /**
  * Renders app info and the list of supported emulation systems, read
@@ -14,7 +16,7 @@ export async function mountAboutSection(container) {
 
     const tagline = document.createElement('div');
     tagline.className = 'settings__about-tagline';
-    tagline.textContent = 'Un launcher unique pour plusieurs émulateurs maison, écrit en Go + Wails.';
+    tagline.textContent = t(loadAppLocale(), 'aboutTagline');
 
     const list = document.createElement('div');
     list.className = 'settings__list';

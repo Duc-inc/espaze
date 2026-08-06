@@ -1,5 +1,7 @@
 import './sidebar.css';
 import {systemColor} from '../../systems/colors.js';
+import {t} from '../../i18n/i18n.js';
+import {loadAppLocale} from '../../i18n/storage.js';
 
 /**
  * Renders the left rail: a "back to library" strip, a content-type
@@ -9,6 +11,8 @@ import {systemColor} from '../../systems/colors.js';
  * @param {{onLaunch:(id:string)=>void, onHome:()=>void, onGridView:()=>void, onAddFolder:()=>Promise<void>, onRescan:()=>Promise<void>}} handlers
  */
 export function mountSidebar(container, {onLaunch, onHome, onGridView, onAddFolder, onRescan}) {
+    const locale = loadAppLocale();
+
     const el = document.createElement('div');
     el.className = 'sidebar';
 
@@ -17,12 +21,12 @@ export function mountSidebar(container, {onLaunch, onHome, onGridView, onAddFold
 
     const homeBtn = document.createElement('button');
     homeBtn.className = 'sidebar__head-home';
-    homeBtn.textContent = 'Accueil';
+    homeBtn.textContent = t(locale, 'sidebarHome');
     homeBtn.addEventListener('click', onHome);
 
     const gridBtn = document.createElement('button');
     gridBtn.className = 'sidebar__head-grid';
-    gridBtn.title = 'Tous les jeux, rangés par console';
+    gridBtn.title = t(locale, 'sidebarGridTitle');
     gridBtn.innerHTML = '<i class="fa-solid fa-table-cells"></i>';
     gridBtn.addEventListener('click', onGridView);
 
@@ -30,10 +34,10 @@ export function mountSidebar(container, {onLaunch, onHome, onGridView, onAddFold
 
     const filter = document.createElement('div');
     filter.className = 'sidebar__filter';
-    filter.innerHTML = '<select><option>Tous les jeux/catégories</option></select>';
+    filter.innerHTML = `<select><option>${t(locale, 'sidebarFilterAll')}</option></select>`;
     const addFolderBtn = document.createElement('button');
     addFolderBtn.className = 'sidebar__icon-btn';
-    addFolderBtn.title = 'Ajouter un dossier';
+    addFolderBtn.title = t(locale, 'sidebarAddFolder');
     addFolderBtn.innerHTML = '<i class="fa-solid fa-folder-plus"></i>';
     filter.appendChild(addFolderBtn);
 
@@ -44,11 +48,11 @@ export function mountSidebar(container, {onLaunch, onHome, onGridView, onAddFold
     search.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i>';
     const input = document.createElement('input');
     input.type = 'text';
-    input.placeholder = 'Rechercher un jeu';
+    input.placeholder = t(locale, 'sidebarSearchPlaceholder');
     search.appendChild(input);
     const rescanBtn = document.createElement('button');
     rescanBtn.className = 'sidebar__icon-btn';
-    rescanBtn.title = 'Rescanner';
+    rescanBtn.title = t(locale, 'sidebarRescan');
     rescanBtn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i>';
     tools.append(search, rescanBtn);
 
@@ -69,13 +73,13 @@ export function mountSidebar(container, {onLaunch, onHome, onGridView, onAddFold
             ? games.filter((g) => g.title.toLowerCase().includes(query))
             : games;
 
-        groupTitle.textContent = `Tous les jeux (${visible.length}/${games.length})`;
+        groupTitle.textContent = t(locale, 'sidebarGamesCount', {visible: visible.length, total: games.length});
         list.innerHTML = '';
 
         if (visible.length === 0) {
             const empty = document.createElement('div');
             empty.className = 'sidebar__empty';
-            empty.textContent = games.length === 0 ? 'Aucun jeu.' : 'Aucun résultat.';
+            empty.textContent = games.length === 0 ? t(locale, 'sidebarEmptyNone') : t(locale, 'sidebarEmptyNoResults');
             list.appendChild(empty);
             return;
         }

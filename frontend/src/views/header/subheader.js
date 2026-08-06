@@ -1,8 +1,6 @@
 import './subheader.css';
-
-const NAV_ITEMS = [
-    {id: 'library', label: 'BIBLIOTHÈQUE'},
-];
+import {t} from '../../i18n/i18n.js';
+import {loadAppLocale} from '../../i18n/storage.js';
 
 /**
  * Renders the dense nav strip: history chevrons, then section tabs, then
@@ -14,6 +12,11 @@ const NAV_ITEMS = [
  * @param {()=>void} onHistoryForward
  */
 export function mountSubheader(container, onNavigate, onSettings, onHistoryBack, onHistoryForward) {
+    const locale = loadAppLocale();
+    const NAV_ITEMS = [
+        {id: 'library', label: t(locale, 'subheaderLibrary')},
+    ];
+
     const el = document.createElement('div');
     el.className = 'subheader';
 
@@ -45,7 +48,7 @@ export function mountSubheader(container, onNavigate, onSettings, onHistoryBack,
     right.className = 'subheader__right';
     const settingsBtn = document.createElement('button');
     settingsBtn.className = 'subheader__icon-btn';
-    settingsBtn.title = 'Paramètres';
+    settingsBtn.title = t(locale, 'subheaderSettingsTitle');
     settingsBtn.innerHTML = '<i class="fa-solid fa-gear"></i>';
     settingsBtn.addEventListener('click', onSettings);
     right.appendChild(settingsBtn);

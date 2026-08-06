@@ -2,12 +2,16 @@ import './library.css';
 import {createGameCard} from '../../components/game-card/game-card.js';
 import {createGameRow} from '../../components/game-row/game-row.js';
 import {systemName} from '../../systems/names.js';
+import {t} from '../../i18n/i18n.js';
+import {loadAppLocale} from '../../i18n/storage.js';
+
+const locale = loadAppLocale();
 
 const SORTS = {
-    alpha: {label: 'Ordre alphabétique', compare: (a, b) => a.title.localeCompare(b.title)},
-    added: {label: 'Récemment ajoutés', compare: (a, b) => new Date(b.addedAt) - new Date(a.addedAt)},
-    played: {label: 'Récemment joués', compare: (a, b) => new Date(b.lastPlayedAt ?? 0) - new Date(a.lastPlayedAt ?? 0)},
-    playtime: {label: 'Temps de jeu', compare: (a, b) => b.playTimeSeconds - a.playTimeSeconds},
+    alpha: {label: t(locale, 'sortAlpha'), compare: (a, b) => a.title.localeCompare(b.title)},
+    added: {label: t(locale, 'sortAdded'), compare: (a, b) => new Date(b.addedAt) - new Date(a.addedAt)},
+    played: {label: t(locale, 'sortPlayed'), compare: (a, b) => new Date(b.lastPlayedAt ?? 0) - new Date(a.lastPlayedAt ?? 0)},
+    playtime: {label: t(locale, 'sortPlaytime'), compare: (a, b) => b.playTimeSeconds - a.playTimeSeconds},
 };
 
 /**
@@ -24,7 +28,7 @@ export function mountLibraryMain(container, games, onLaunch) {
     container.appendChild(main.el);
 
     renderShelves();
-    main.gridTitle.textContent = `Tous les jeux (${games.length})`;
+    main.gridTitle.textContent = t(locale, 'libraryGamesCount', {count: games.length});
     renderGrid();
     main.sortSelect.addEventListener('change', renderGrid);
 
@@ -34,13 +38,13 @@ export function mountLibraryMain(container, games, onLaunch) {
         const recentlyPlayed = games.filter((g) => g.lastPlayedAt).sort(SORTS.played.compare).slice(0, 10);
         const mostPlayed = games.filter((g) => g.playTimeSeconds > 0).sort(SORTS.playtime.compare).slice(0, 10);
 
-        const addedRow = createGameRow('Ajoutés récemment', recentlyAdded, onLaunch, {variant: 'banner'});
+        const addedRow = createGameRow(t(locale, 'shelfRecentlyAdded'), recentlyAdded, onLaunch, {variant: 'banner'});
         if (addedRow) main.shelves.appendChild(addedRow);
 
-        const mostPlayedRow = createGameRow('Le plus joué', mostPlayed, onLaunch, {variant: 'cover'});
+        const mostPlayedRow = createGameRow(t(locale, 'shelfMostPlayed'), mostPlayed, onLaunch, {variant: 'cover'});
         if (mostPlayedRow) main.shelves.appendChild(mostPlayedRow);
 
-        const playedRow = createGameRow('Jeux récents', recentlyPlayed, onLaunch, {variant: 'cover'});
+        const playedRow = createGameRow(t(locale, 'shelfRecentGames'), recentlyPlayed, onLaunch, {variant: 'cover'});
         if (playedRow) main.shelves.appendChild(playedRow);
     }
 
@@ -51,7 +55,7 @@ export function mountLibraryMain(container, games, onLaunch) {
         if (sorted.length === 0) {
             const empty = document.createElement('div');
             empty.className = 'library__empty';
-            empty.textContent = 'Aucun jeu pour le moment. Ajoute un dossier contenant des ROMs.';
+            empty.textContent = t(locale, 'libraryEmpty');
             main.grid.appendChild(empty);
             return;
         }
@@ -83,7 +87,7 @@ export function mountGroupedGrid(container, games, onLaunch) {
     if (groups.size === 0) {
         const empty = document.createElement('div');
         empty.className = 'library__empty';
-        empty.textContent = 'Aucun jeu pour le moment. Ajoute un dossier contenant des ROMs.';
+        empty.textContent = t(locale, 'libraryEmpty');
         root.appendChild(empty);
     }
 
@@ -96,7 +100,7 @@ export function mountGroupedGrid(container, games, onLaunch) {
 
         const heading = document.createElement('div');
         heading.className = 'library__grid-title';
-        heading.textContent = `${systemName(system)} (${systemGames.length})`;
+        heading.textContent = t(locale, 'consoleSectionCount', {system: systemName(system), count: systemGames.length});
 
         const grid = document.createElement('div');
         grid.className = 'library__grid';

@@ -1,5 +1,7 @@
 import './footer.css';
 import {APP_VERSION} from '../../version.js';
+import {t} from '../../i18n/i18n.js';
+import {loadAppLocale} from '../../i18n/storage.js';
 
 /**
  * Renders the thin status bar pinned to the bottom of the window: a
@@ -17,7 +19,7 @@ export function mountFooter(container) {
 
     const downloads = document.createElement('div');
     downloads.className = 'footer__downloads';
-    downloads.innerHTML = '<i class="fa-solid fa-arrow-down"></i> Gérer les téléchargements';
+    downloads.innerHTML = `<i class="fa-solid fa-arrow-down"></i> ${t(loadAppLocale(), 'footerDownloads')}`;
 
     const version = document.createElement('div');
     version.className = 'footer__version';

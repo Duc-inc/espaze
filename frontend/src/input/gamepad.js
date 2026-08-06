@@ -30,3 +30,25 @@ export function hasGamepad() {
     if (!navigator.getGamepads) return false;
     return [...navigator.getGamepads()].some((pad) => pad && pad.connected);
 }
+
+/**
+ * Rumbles every connected gamepad that supports the standard haptics
+ * actuator. No system currently plugged into Espaze drives this - CHIP-8,
+ * Super-CHIP and the DMG Game Boy core all predate rumble hardware - it's
+ * here so a future system that does (e.g. an MBC5+rumble GB cartridge,
+ * or a later console) has a ready-made call.
+ * @param {number} durationMs
+ * @param {number} [weakMagnitude] 0-1
+ * @param {number} [strongMagnitude] 0-1
+ */
+export function rumble(durationMs, weakMagnitude = 0.5, strongMagnitude = 1.0) {
+    if (!navigator.getGamepads) return;
+    for (const pad of navigator.getGamepads()) {
+        if (!pad || !pad.connected || !pad.vibrationActuator) continue;
+        pad.vibrationActuator.playEffect('dual-rumble', {
+            duration: durationMs,
+            weakMagnitude,
+            strongMagnitude,
+        });
+    }
+}

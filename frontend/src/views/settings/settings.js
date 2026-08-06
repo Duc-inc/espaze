@@ -1,12 +1,20 @@
 import './settings.css';
 import {mountLibrarySection} from './library-section.js';
 import {mountControlsSection} from './controls.js';
+import {mountAudioSection} from './audio.js';
+import {mountGeneralSection} from './general.js';
 import {mountAboutSection} from './about.js';
+import {t} from '../../i18n/i18n.js';
+import {loadAppLocale} from '../../i18n/storage.js';
+
+const locale = loadAppLocale();
 
 const SECTIONS = [
-    {id: 'library', label: 'Bibliothèque', icon: 'fa-folder-open', mount: mountLibrarySection},
-    {id: 'controls', label: 'Contrôles', icon: 'fa-gamepad', mount: mountControlsSection},
-    {id: 'about', label: 'À propos', icon: 'fa-circle-info', mount: mountAboutSection},
+    {id: 'library', label: t(locale, 'settingsNavLibrary'), icon: 'fa-folder-open', mount: mountLibrarySection},
+    {id: 'controls', label: t(locale, 'settingsNavControls'), icon: 'fa-gamepad', mount: mountControlsSection},
+    {id: 'audio', label: t(locale, 'settingsNavAudio'), icon: 'fa-volume-high', mount: mountAudioSection},
+    {id: 'general', label: t(locale, 'settingsNavGeneral'), icon: 'fa-globe', mount: mountGeneralSection},
+    {id: 'about', label: t(locale, 'settingsNavAbout'), icon: 'fa-circle-info', mount: mountAboutSection},
 ];
 
 /**
@@ -24,7 +32,7 @@ export function mountSettings(container, onBack) {
 
     const backBtn = document.createElement('button');
     backBtn.className = 'settings__back';
-    backBtn.innerHTML = '<i class="fa-solid fa-arrow-left"></i> Bibliothèque';
+    backBtn.innerHTML = `<i class="fa-solid fa-arrow-left"></i> ${t(locale, 'settingsBack')}`;
     backBtn.addEventListener('click', onBack);
     nav.appendChild(backBtn);
 

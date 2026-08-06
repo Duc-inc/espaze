@@ -1,5 +1,7 @@
 import './game-detail.css';
 import {systemColor} from '../../systems/colors.js';
+import {t} from '../../i18n/i18n.js';
+import {loadAppLocale} from '../../i18n/storage.js';
 
 /**
  * Renders a game's detail page: a colored hero with its title and a
@@ -10,6 +12,8 @@ import {systemColor} from '../../systems/colors.js';
  * @param {() => void} onPlay
  */
 export function mountGameDetail(container, game, onPlay) {
+    const locale = loadAppLocale();
+
     const root = document.createElement('div');
     root.className = 'detail';
 
@@ -26,7 +30,7 @@ export function mountGameDetail(container, game, onPlay) {
 
     const playBtn = document.createElement('button');
     playBtn.className = 'detail__play-btn';
-    playBtn.innerHTML = '<i class="fa-solid fa-play"></i> Jouer';
+    playBtn.innerHTML = `<i class="fa-solid fa-play"></i> ${t(locale, 'detailPlay')}`;
     playBtn.addEventListener('click', onPlay);
 
     const badge = document.createElement('div');
@@ -39,10 +43,10 @@ export function mountGameDetail(container, game, onPlay) {
     const stats = document.createElement('div');
     stats.className = 'detail__stats';
     stats.append(
-        buildStat('Système', game.system),
-        buildStat('Ajouté le', formatDate(game.addedAt)),
-        buildStat('Dernière partie', game.lastPlayedAt ? formatDate(game.lastPlayedAt) : 'Jamais jouée'),
-        buildStat('Temps de jeu total', formatPlaytime(game.playTimeSeconds)),
+        buildStat(t(locale, 'detailStatSystem'), game.system),
+        buildStat(t(locale, 'detailStatAdded'), formatDate(game.addedAt, locale)),
+        buildStat(t(locale, 'detailStatLastPlayed'), game.lastPlayedAt ? formatDate(game.lastPlayedAt, locale) : t(locale, 'detailStatNeverPlayed')),
+        buildStat(t(locale, 'detailStatPlaytime'), formatPlaytime(game.playTimeSeconds, locale)),
     );
 
     root.append(hero, stats);
@@ -61,18 +65,18 @@ function buildStat(label, value) {
     return el;
 }
 
-function formatDate(isoString) {
-    return new Date(isoString).toLocaleDateString('fr-FR', {
+function formatDate(isoString, locale) {
+    return new Date(isoString).toLocaleDateString(locale === 'en' ? 'en-US' : 'fr-FR', {
         day: '2-digit',
         month: 'long',
         year: 'numeric',
     });
 }
 
-function formatPlaytime(totalSeconds) {
+function formatPlaytime(totalSeconds, locale) {
     const hours = totalSeconds / 3600;
     if (hours < 0.1) {
-        return "Moins d'une heure";
+        return t(locale, 'detailPlaytimeLessThanHour');
     }
-    return `${hours.toFixed(1)} heures`;
+    return t(locale, 'detailPlaytimeHours', {hours: hours.toFixed(1)});
 }

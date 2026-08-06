@@ -1,5 +1,7 @@
 import {buttonsForSystem} from '../../input/buttons.js';
 import {loadKeymap, resetKeymap, saveKeymap} from '../../input/storage.js';
+import {t} from '../../i18n/i18n.js';
+import {loadAppLocale} from '../../i18n/storage.js';
 
 const SYSTEMS = [
     {id: 'chip8', label: 'CHIP-8'},
@@ -14,6 +16,8 @@ const SYSTEMS = [
  * @param {HTMLElement} container
  */
 export function mountControlsSection(container) {
+    const locale = loadAppLocale();
+
     const tabs = document.createElement('div');
     tabs.className = 'settings__tabs';
     const tabButtons = new Map();
@@ -21,7 +25,7 @@ export function mountControlsSection(container) {
 
     const resetBtn = document.createElement('button');
     resetBtn.className = 'settings__reset';
-    resetBtn.innerHTML = '<i class="fa-solid fa-rotate-left"></i> Réinitialiser ce système';
+    resetBtn.innerHTML = `<i class="fa-solid fa-rotate-left"></i> ${t(locale, 'controlsReset')}`;
 
     const list = document.createElement('div');
     list.className = 'settings__list';
@@ -58,8 +62,8 @@ export function mountControlsSection(container) {
 
             const keyBtn = document.createElement('button');
             keyBtn.className = 'settings__row-key';
-            keyBtn.textContent = describeBinding(keymap, bit);
-            keyBtn.addEventListener('click', () => captureKey(keyBtn, activeSystem, bit, renderList));
+            keyBtn.textContent = describeBinding(keymap, bit, locale);
+            keyBtn.addEventListener('click', () => captureKey(keyBtn, activeSystem, bit, renderList, locale));
 
             row.append(labelEl, keyBtn);
             list.appendChild(row);
@@ -77,16 +81,16 @@ export function mountControlsSection(container) {
     container.append(tabs, resetBtn, list);
 }
 
-function describeBinding(keymap, bit) {
+function describeBinding(keymap, bit, locale) {
     const codes = Object.entries(keymap)
         .filter(([, assignedBit]) => assignedBit === bit)
         .map(([code]) => formatCode(code));
-    return codes.length > 0 ? codes.join(' / ') : 'Non assignée';
+    return codes.length > 0 ? codes.join(' / ') : t(locale, 'controlsUnassigned');
 }
 
-function captureKey(button, systemId, bit, onDone) {
+function captureKey(button, systemId, bit, onDone, locale) {
     const previousLabel = button.textContent;
-    button.textContent = 'Appuie sur une touche…';
+    button.textContent = t(locale, 'controlsPressKey');
     button.classList.add('capturing');
 
     function handleKeyDown(e) {
@@ -127,3 +131,6 @@ function formatCode(code) {
     if (code.startsWith('Digit')) return code.slice(5);
     return code;
 }
+// (These are physical-key labels shown as English-style shorthand in the
+// French UI too - "Maj"/"Ctrl" read fine either way - so they aren't
+// pulled from the locale dictionary.)

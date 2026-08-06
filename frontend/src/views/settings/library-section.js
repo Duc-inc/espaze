@@ -1,13 +1,17 @@
 import {libraryFolders, pickAndAddLibraryFolder, removeLibraryFolder} from '../../api/games.js';
+import {t} from '../../i18n/i18n.js';
+import {loadAppLocale} from '../../i18n/storage.js';
 
 /**
  * Renders the list of tracked ROM folders, with add/remove controls.
  * @param {HTMLElement} container
  */
 export async function mountLibrarySection(container) {
+    const locale = loadAppLocale();
+
     const addBtn = document.createElement('button');
     addBtn.className = 'primary settings__add-folder';
-    addBtn.innerHTML = '<i class="fa-solid fa-folder-plus"></i> Ajouter un dossier';
+    addBtn.innerHTML = `<i class="fa-solid fa-folder-plus"></i> ${t(locale, 'librarySectionAddFolder')}`;
 
     const list = document.createElement('div');
     list.className = 'settings__list';
@@ -21,7 +25,7 @@ export async function mountLibrarySection(container) {
         if (folders.length === 0) {
             const empty = document.createElement('div');
             empty.className = 'settings__empty';
-            empty.textContent = 'Aucun dossier suivi pour le moment.';
+            empty.textContent = t(locale, 'librarySectionEmpty');
             list.appendChild(empty);
             return;
         }
@@ -37,7 +41,7 @@ export async function mountLibrarySection(container) {
 
             const removeBtn = document.createElement('button');
             removeBtn.className = 'settings__row-remove';
-            removeBtn.title = 'Retirer ce dossier';
+            removeBtn.title = t(locale, 'librarySectionRemove');
             removeBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
             removeBtn.addEventListener('click', async () => {
                 removeBtn.disabled = true;

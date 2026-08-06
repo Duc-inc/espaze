@@ -1,11 +1,13 @@
 import './savestates.css';
 import {listSaveSlots, loadStateFromSlot, saveStateToSlot} from '../../api/emulation.js';
+import {t} from '../../i18n/i18n.js';
 
 /**
  * Builds the collapsible save-slot panel shown under the player toolbar:
  * a fixed row of slots, each with its own Save/Load buttons.
+ * @param {string} locale
  */
-export function createSaveSlotsPanel() {
+export function createSaveSlotsPanel(locale) {
     const el = document.createElement('div');
     el.className = 'savestates';
     el.hidden = true;
@@ -14,7 +16,7 @@ export function createSaveSlotsPanel() {
         const slots = await listSaveSlots();
         el.innerHTML = '';
         for (const slot of slots) {
-            el.appendChild(buildSlotCard(slot, refresh));
+            el.appendChild(buildSlotCard(slot, refresh, locale));
         }
     }
 
@@ -28,23 +30,23 @@ export function createSaveSlotsPanel() {
     return {el, toggle, refresh};
 }
 
-function buildSlotCard(slot, refresh) {
+function buildSlotCard(slot, refresh, locale) {
     const card = document.createElement('div');
     card.className = 'savestates__slot';
 
     const label = document.createElement('div');
     label.className = 'savestates__label';
-    label.textContent = `Emplacement ${slot.slot + 1}`;
+    label.textContent = t(locale, 'saveSlotLabel', {n: slot.slot + 1});
 
     const status = document.createElement('div');
     status.className = 'savestates__status';
-    status.textContent = slot.savedAt ? formatDate(slot.savedAt) : 'Vide';
+    status.textContent = slot.savedAt ? formatDate(slot.savedAt, locale) : t(locale, 'saveSlotEmpty');
 
     const actions = document.createElement('div');
     actions.className = 'savestates__actions';
 
     const saveBtn = document.createElement('button');
-    saveBtn.textContent = 'Sauvegarder';
+    saveBtn.textContent = t(locale, 'saveSlotSave');
     saveBtn.addEventListener('click', async () => {
         saveBtn.disabled = true;
         try {
@@ -57,7 +59,7 @@ function buildSlotCard(slot, refresh) {
 
     const loadBtn = document.createElement('button');
     loadBtn.className = 'primary';
-    loadBtn.textContent = 'Charger';
+    loadBtn.textContent = t(locale, 'saveSlotLoad');
     loadBtn.disabled = !slot.savedAt;
     loadBtn.addEventListener('click', async () => {
         loadBtn.disabled = true;
@@ -73,8 +75,8 @@ function buildSlotCard(slot, refresh) {
     return card;
 }
 
-function formatDate(isoString) {
-    return new Date(isoString).toLocaleString('fr-FR', {
+function formatDate(isoString, locale) {
+    return new Date(isoString).toLocaleString(locale === 'en' ? 'en-US' : 'fr-FR', {
         day: '2-digit',
         month: '2-digit',
         hour: '2-digit',
