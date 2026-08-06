@@ -4,6 +4,7 @@ const SYSTEM_NAMES = {
     chip8: 'CHIP-8',
     schip: 'Super-CHIP',
     gameboy: 'Game Boy',
+    gbc: 'Game Boy Color',
     nes: 'NES',
 };
 

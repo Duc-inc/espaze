@@ -42,6 +42,7 @@ export const SYSTEM_BUTTONS = {
     chip8: CHIP8_BUTTONS,
     schip: CHIP8_BUTTONS,
     gameboy: GAMEBOY_BUTTONS,
+    gbc: GAMEBOY_BUTTONS, // same 8 buttons, same bit layout as DMG - see gbc/memory joypad reuse
     nes: NES_BUTTONS,
 };
 
@@ -49,6 +50,7 @@ export const DEFAULT_KEYMAPS = {
     chip8: CHIP8_DEFAULT_KEYMAP,
     schip: CHIP8_DEFAULT_KEYMAP,
     gameboy: GAMEBOY_DEFAULT_KEYMAP,
+    gbc: GAMEBOY_DEFAULT_KEYMAP,
     nes: NES_DEFAULT_KEYMAP,
 };
 
@@ -87,6 +89,7 @@ const DEFAULT_GAMEPAD_MAPS = {
     chip8: CHIP8_GAMEPAD_MAP,
     schip: CHIP8_GAMEPAD_MAP,
     gameboy: GAMEBOY_GAMEPAD_MAP,
+    gbc: GAMEBOY_GAMEPAD_MAP,
     nes: NES_GAMEPAD_MAP,
 };
 

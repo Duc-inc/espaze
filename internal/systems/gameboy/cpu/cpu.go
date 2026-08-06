@@ -7,6 +7,7 @@ package cpu
 type CPU struct {
 	regs registers
 	bus  Bus
+	cgb  bool // true if this CPU should boot with CGB's post-boot register state
 
 	ime     bool
 	eiDelay int // >0 while an EI's effect is still pending (see Step)
@@ -14,9 +15,19 @@ type CPU struct {
 	stopped bool
 }
 
-// New wires a CPU to the bus it will read instructions and data from.
+// New wires a CPU to the bus it will read instructions and data from,
+// booting into plain DMG register state.
 func New(bus Bus) *CPU {
 	c := &CPU{bus: bus}
+	c.Reset()
+	return c
+}
+
+// NewCGB is New, but boots with A=0x11 instead of DMG's 0x01 - the one
+// register difference real CGB hardware's boot ROM leaves behind, which
+// is exactly what CGB-aware cartridges check to tell the two apart.
+func NewCGB(bus Bus) *CPU {
+	c := &CPU{bus: bus, cgb: true}
 	c.Reset()
 	return c
 }
@@ -24,7 +35,11 @@ func New(bus Bus) *CPU {
 // Reset sets registers and I/O to the well-known post-boot-ROM state.
 func (c *CPU) Reset() {
 	c.regs = registers{SP: 0xFFFE, PC: 0x0100}
-	c.regs.SetAF(0x01B0)
+	if c.cgb {
+		c.regs.SetAF(0x11B0)
+	} else {
+		c.regs.SetAF(0x01B0)
+	}
 	c.regs.SetBC(0x0013)
 	c.regs.SetDE(0x00D8)
 	c.regs.SetHL(0x014D)

@@ -7,6 +7,7 @@ const SYSTEMS = [
     {id: 'chip8', label: 'CHIP-8'},
     {id: 'schip', label: 'Super-CHIP'},
     {id: 'gameboy', label: 'Game Boy'},
+    {id: 'gbc', label: 'Game Boy Color'},
     {id: 'nes', label: 'NES'},
 ];
 

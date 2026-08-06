@@ -18,6 +18,7 @@ type MBC interface {
 type MBCSnapshot struct {
 	RAM         []byte
 	ROMBank     uint8
+	ROMBankHi   uint8 // MBC5's 9th ROM bank bit; unused by every other MBC
 	RAMBank     uint8
 	RAMEnabled  bool
 	BankingMode uint8
@@ -30,6 +31,8 @@ func NewMBC(cart *Cartridge) MBC {
 		return newMBC0(cart)
 	case cart.Type >= 0x01 && cart.Type <= 0x03:
 		return newMBC1(cart)
+	case cart.Type >= 0x19 && cart.Type <= 0x1E:
+		return newMBC5(cart)
 	default:
 		// Unsupported controller: fall back to plain ROM mapping so the
 		// game at least boots instead of crashing the whole app.

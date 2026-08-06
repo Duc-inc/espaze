@@ -5,6 +5,7 @@ const SYSTEM_COLORS = {
     chip8: 'var(--color-chip8)',
     schip: 'var(--color-schip)',
     gameboy: 'var(--color-gameboy)',
+    gbc: 'var(--color-gbc)',
     nes: 'var(--color-nes)',
 };
 
