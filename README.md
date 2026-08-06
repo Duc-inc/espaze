@@ -1,10 +1,8 @@
 <div align="center">
 
-<table border="0">
-  <tr>
-    <td align="center"><img src=".github/assets/logo_res.png" width="600" /></td>
-  </tr>
-</table>
+<p align="center">
+    <img src=".github/assets/logo_res.png" width="600" />
+</p>
 
 *A retro game launcher, with its own multi-emulators.*
 
