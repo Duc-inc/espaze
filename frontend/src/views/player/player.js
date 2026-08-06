@@ -1,5 +1,6 @@
 import './player.css';
 import {createCanvasRenderer} from './canvas.js';
+import {createSaveSlotsPanel} from './savestates.js';
 import {onFrame} from '../../api/events.js';
 import {launchGame, pauseGame, resumeGame, sendInput, stopGame} from '../../api/emulation.js';
 import {CHIP8_KEYMAP, KeyState} from '../../input/keymap.js';
@@ -35,6 +36,8 @@ export async function mountPlayer(container, gameId, onExit) {
         root.pauseBtn.textContent = paused ? 'Reprendre' : 'Pause';
         await (paused ? pauseGame() : resumeGame());
     });
+
+    root.savesBtn.addEventListener('click', () => root.savesPanel.toggle());
 
     root.backBtn.addEventListener('click', async () => {
         await cleanup();
@@ -72,7 +75,12 @@ function buildLayout() {
     const pauseBtn = document.createElement('button');
     pauseBtn.textContent = 'Pause';
 
-    toolbar.append(backBtn, pauseBtn);
+    const savesBtn = document.createElement('button');
+    savesBtn.textContent = 'Sauvegardes';
+
+    toolbar.append(backBtn, pauseBtn, savesBtn);
+
+    const savesPanel = createSaveSlotsPanel();
 
     const stage = document.createElement('div');
     stage.className = 'player__stage';
@@ -83,7 +91,7 @@ function buildLayout() {
     canvas.height = CANVAS_HEIGHT;
 
     stage.appendChild(canvas);
-    el.append(toolbar, stage);
+    el.append(toolbar, savesPanel.el, stage);
 
-    return {el, canvas, backBtn, pauseBtn};
+    return {el, canvas, backBtn, pauseBtn, savesBtn, savesPanel};
 }

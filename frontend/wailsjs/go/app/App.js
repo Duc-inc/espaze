@@ -26,8 +26,16 @@ export function ListGames() {
   return window['go']['app']['App']['ListGames']();
 }
 
+export function ListSaveSlots() {
+  return window['go']['app']['App']['ListSaveSlots']();
+}
+
 export function LoadState(arg1) {
   return window['go']['app']['App']['LoadState'](arg1);
+}
+
+export function LoadStateFromSlot(arg1) {
+  return window['go']['app']['App']['LoadStateFromSlot'](arg1);
 }
 
 export function PauseGame() {
@@ -48,6 +56,10 @@ export function ResumeGame() {
 
 export function SaveState() {
   return window['go']['app']['App']['SaveState']();
+}
+
+export function SaveStateToSlot(arg1) {
+  return window['go']['app']['App']['SaveStateToSlot'](arg1);
 }
 
 export function SendInput(arg1) {

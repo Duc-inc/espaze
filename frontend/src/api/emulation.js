@@ -2,10 +2,13 @@
 // currently running emulation core.
 import {
     LaunchGame,
+    ListSaveSlots,
     LoadState,
+    LoadStateFromSlot,
     PauseGame,
     ResumeGame,
     SaveState,
+    SaveStateToSlot,
     SendInput,
     StopGame,
 } from '../../wailsjs/go/app/App';
@@ -36,4 +39,16 @@ export async function saveState() {
 
 export async function loadState(encoded) {
     return await LoadState(encoded);
+}
+
+export async function listSaveSlots() {
+    return (await ListSaveSlots()) ?? [];
+}
+
+export async function saveStateToSlot(slot) {
+    return await SaveStateToSlot(slot);
+}
+
+export async function loadStateFromSlot(slot) {
+    return await LoadStateFromSlot(slot);
 }
