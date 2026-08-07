@@ -64,6 +64,19 @@ const GENESIS_DEFAULT_KEYMAP = {
     KeyZ: 6, KeyX: 4, KeyC: 5, Enter: 7,
 };
 
+// Game Gear bit layout matches internal/systems/gamegear's constants
+// exactly (Up/Down/Left/Right/Button1/Button2 reuse sms/memory's bits
+// 0-5 directly, Start is the Game Gear's own addition at bit 6).
+const GAMEGEAR_BUTTONS = [
+    {bit: 0, label: 'Haut'}, {bit: 1, label: 'Bas'}, {bit: 2, label: 'Gauche'}, {bit: 3, label: 'Droite'},
+    {bit: 4, label: '1'}, {bit: 5, label: '2'}, {bit: 6, label: 'Start'},
+];
+
+const GAMEGEAR_DEFAULT_KEYMAP = {
+    ArrowUp: 0, ArrowDown: 1, ArrowLeft: 2, ArrowRight: 3,
+    KeyX: 4, KeyZ: 5, Enter: 6,
+};
+
 export const SYSTEM_BUTTONS = {
     chip8: CHIP8_BUTTONS,
     schip: CHIP8_BUTTONS,
@@ -72,6 +85,7 @@ export const SYSTEM_BUTTONS = {
     nes: NES_BUTTONS,
     sms: SMS_BUTTONS,
     genesis: GENESIS_BUTTONS,
+    gamegear: GAMEGEAR_BUTTONS,
 };
 
 export const DEFAULT_KEYMAPS = {
@@ -82,6 +96,7 @@ export const DEFAULT_KEYMAPS = {
     nes: NES_DEFAULT_KEYMAP,
     sms: SMS_DEFAULT_KEYMAP,
     genesis: GENESIS_DEFAULT_KEYMAP,
+    gamegear: GAMEGEAR_DEFAULT_KEYMAP,
 };
 
 export function buttonsForSystem(systemId) {
@@ -127,6 +142,12 @@ const GENESIS_GAMEPAD_MAP = {
     9: 7,                       // Start -> Start
 };
 
+const GAMEGEAR_GAMEPAD_MAP = {
+    12: 0, 13: 1, 14: 2, 15: 3, // d-pad -> Up/Down/Left/Right
+    0: 4, 1: 5,                 // A -> 1, B -> 2
+    9: 6,                       // Start -> Start
+};
+
 const DEFAULT_GAMEPAD_MAPS = {
     chip8: CHIP8_GAMEPAD_MAP,
     schip: CHIP8_GAMEPAD_MAP,
@@ -135,6 +156,7 @@ const DEFAULT_GAMEPAD_MAPS = {
     nes: NES_GAMEPAD_MAP,
     sms: SMS_GAMEPAD_MAP,
     genesis: GENESIS_GAMEPAD_MAP,
+    gamegear: GAMEGEAR_GAMEPAD_MAP,
 };
 
 export function gamepadMapForSystem(systemId) {

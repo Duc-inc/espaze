@@ -34,6 +34,7 @@ Bundling several emulators into a single launcher.
 | NES | ✅ Complete | `.nes` |
 | Sega Master System | ✅ Complete | `.sms` |
 | Sega Genesis / Mega Drive | ✅ Complete | `.md`, `.bin`, `.gen` |
+| Sega Game Gear | ✅ Complete | `.gg` |
 
 
 ## Tech stack

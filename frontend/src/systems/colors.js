@@ -9,6 +9,7 @@ const SYSTEM_COLORS = {
     nes: 'var(--color-nes)',
     sms: 'var(--color-sms)',
     genesis: 'var(--color-genesis)',
+    gamegear: 'var(--color-gamegear)',
 };
 
 export function systemColor(systemId) {

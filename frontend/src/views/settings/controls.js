@@ -11,6 +11,7 @@ const SYSTEMS = [
     {id: 'nes', label: 'NES'},
     {id: 'sms', label: 'Master System'},
     {id: 'genesis', label: 'Genesis / Mega Drive'},
+    {id: 'gamegear', label: 'Game Gear'},
 ];
 
 /**

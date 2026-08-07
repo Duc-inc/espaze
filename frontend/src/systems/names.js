@@ -8,6 +8,7 @@ const SYSTEM_NAMES = {
     nes: 'NES',
     sms: 'Master System',
     genesis: 'Genesis / Mega Drive',
+    gamegear: 'Game Gear',
 };
 
 export function systemName(systemId) {
