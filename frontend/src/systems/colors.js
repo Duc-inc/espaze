@@ -7,6 +7,7 @@ const SYSTEM_COLORS = {
     gameboy: 'var(--color-gameboy)',
     gbc: 'var(--color-gbc)',
     nes: 'var(--color-nes)',
+    sms: 'var(--color-sms)',
 };
 
 export function systemColor(systemId) {

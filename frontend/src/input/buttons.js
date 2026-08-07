@@ -38,12 +38,27 @@ const NES_DEFAULT_KEYMAP = {
     KeyX: 0, KeyZ: 1, ShiftLeft: 2, Enter: 3,
 };
 
+// SMS bit layout matches internal/systems/sms/memory/joypad.go's
+// constants exactly (Up=0, Down=1, Left=2, Right=3, Button1=4,
+// Button2=5, Pause=6 - Pause is wired straight to NMI on real hardware,
+// not either I/O port, but it's still just another button here).
+const SMS_BUTTONS = [
+    {bit: 0, label: 'Haut'}, {bit: 1, label: 'Bas'}, {bit: 2, label: 'Gauche'}, {bit: 3, label: 'Droite'},
+    {bit: 4, label: '1'}, {bit: 5, label: '2'}, {bit: 6, label: 'Pause'},
+];
+
+const SMS_DEFAULT_KEYMAP = {
+    ArrowUp: 0, ArrowDown: 1, ArrowLeft: 2, ArrowRight: 3,
+    KeyX: 4, KeyZ: 5, Enter: 6,
+};
+
 export const SYSTEM_BUTTONS = {
     chip8: CHIP8_BUTTONS,
     schip: CHIP8_BUTTONS,
     gameboy: GAMEBOY_BUTTONS,
     gbc: GAMEBOY_BUTTONS, // same 8 buttons, same bit layout as DMG - see gbc/memory joypad reuse
     nes: NES_BUTTONS,
+    sms: SMS_BUTTONS,
 };
 
 export const DEFAULT_KEYMAPS = {
@@ -52,6 +67,7 @@ export const DEFAULT_KEYMAPS = {
     gameboy: GAMEBOY_DEFAULT_KEYMAP,
     gbc: GAMEBOY_DEFAULT_KEYMAP,
     nes: NES_DEFAULT_KEYMAP,
+    sms: SMS_DEFAULT_KEYMAP,
 };
 
 export function buttonsForSystem(systemId) {
@@ -85,12 +101,19 @@ const NES_GAMEPAD_MAP = {
     8: 2, 9: 3,                 // Back -> Select, Start -> Start
 };
 
+const SMS_GAMEPAD_MAP = {
+    12: 0, 13: 1, 14: 2, 15: 3, // d-pad -> Up/Down/Left/Right
+    0: 4, 1: 5,                 // A -> 1, B -> 2
+    9: 6,                       // Start -> Pause
+};
+
 const DEFAULT_GAMEPAD_MAPS = {
     chip8: CHIP8_GAMEPAD_MAP,
     schip: CHIP8_GAMEPAD_MAP,
     gameboy: GAMEBOY_GAMEPAD_MAP,
     gbc: GAMEBOY_GAMEPAD_MAP,
     nes: NES_GAMEPAD_MAP,
+    sms: SMS_GAMEPAD_MAP,
 };
 
 export function gamepadMapForSystem(systemId) {

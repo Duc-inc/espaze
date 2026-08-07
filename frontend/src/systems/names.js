@@ -6,6 +6,7 @@ const SYSTEM_NAMES = {
     gameboy: 'Game Boy',
     gbc: 'Game Boy Color',
     nes: 'NES',
+    sms: 'Master System',
 };
 
 export function systemName(systemId) {

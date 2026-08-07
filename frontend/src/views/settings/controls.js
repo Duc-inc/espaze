@@ -9,6 +9,7 @@ const SYSTEMS = [
     {id: 'gameboy', label: 'Game Boy'},
     {id: 'gbc', label: 'Game Boy Color'},
     {id: 'nes', label: 'NES'},
+    {id: 'sms', label: 'Master System'},
 ];
 
 /**
