@@ -144,6 +144,18 @@ const SNES_DEFAULT_KEYMAP = {
     KeyQ: 10, KeyW: 11, ShiftLeft: 2, Enter: 3,
 };
 
+// ColecoVision bit layout matches internal/systems/colecovision/memory's
+// constants exactly (Up=0, Down=1, Left=2, Right=3, Fire1=4, Fire2=5).
+const COLECOVISION_BUTTONS = [
+    {bit: 0, label: 'Haut'}, {bit: 1, label: 'Bas'}, {bit: 2, label: 'Gauche'}, {bit: 3, label: 'Droite'},
+    {bit: 4, label: 'Feu 1'}, {bit: 5, label: 'Feu 2'},
+];
+
+const COLECOVISION_DEFAULT_KEYMAP = {
+    ArrowUp: 0, ArrowDown: 1, ArrowLeft: 2, ArrowRight: 3,
+    KeyX: 4, KeyZ: 5,
+};
+
 export const SYSTEM_BUTTONS = {
     chip8: CHIP8_BUTTONS,
     schip: CHIP8_BUTTONS,
@@ -158,6 +170,7 @@ export const SYSTEM_BUTTONS = {
     gba: GBA_BUTTONS,
     ngpc: NGPC_BUTTONS,
     snes: SNES_BUTTONS,
+    colecovision: COLECOVISION_BUTTONS,
 };
 
 export const DEFAULT_KEYMAPS = {
@@ -174,6 +187,7 @@ export const DEFAULT_KEYMAPS = {
     gba: GBA_DEFAULT_KEYMAP,
     ngpc: NGPC_DEFAULT_KEYMAP,
     snes: SNES_DEFAULT_KEYMAP,
+    colecovision: COLECOVISION_DEFAULT_KEYMAP,
 };
 
 export function buttonsForSystem(systemId) {
@@ -256,6 +270,11 @@ const SNES_GAMEPAD_MAP = {
     8: 2, 9: 3,                 // Back -> Select, Start -> Start
 };
 
+const COLECOVISION_GAMEPAD_MAP = {
+    12: 0, 13: 1, 14: 2, 15: 3, // d-pad -> Up/Down/Left/Right
+    0: 4, 1: 5,                 // A -> Fire1, B -> Fire2
+};
+
 const DEFAULT_GAMEPAD_MAPS = {
     chip8: CHIP8_GAMEPAD_MAP,
     schip: CHIP8_GAMEPAD_MAP,
@@ -270,6 +289,7 @@ const DEFAULT_GAMEPAD_MAPS = {
     gba: GBA_GAMEPAD_MAP,
     ngpc: NGPC_GAMEPAD_MAP,
     snes: SNES_GAMEPAD_MAP,
+    colecovision: COLECOVISION_GAMEPAD_MAP,
 };
 
 export function gamepadMapForSystem(systemId) {

@@ -14,6 +14,7 @@ const SYSTEM_NAMES = {
     gba: 'Game Boy Advance',
     ngpc: 'Neo Geo Pocket Color',
     snes: 'Super Nintendo',
+    colecovision: 'ColecoVision',
 };
 
 export function systemName(systemId) {

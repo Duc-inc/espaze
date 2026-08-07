@@ -17,6 +17,7 @@ const SYSTEMS = [
     {id: 'gba', label: 'Game Boy Advance'},
     {id: 'ngpc', label: 'Neo Geo Pocket Color'},
     {id: 'snes', label: 'Super Nintendo'},
+    {id: 'colecovision', label: 'ColecoVision'},
 ];
 
 /**

@@ -17,6 +17,7 @@ import (
 	// registry. Every future system gets the same one-line hookup here.
 	_ "github.com/Duc-inc/espaze/internal/systems/atari2600"
 	_ "github.com/Duc-inc/espaze/internal/systems/chip8"
+	_ "github.com/Duc-inc/espaze/internal/systems/colecovision"
 	_ "github.com/Duc-inc/espaze/internal/systems/gameboy"
 	_ "github.com/Duc-inc/espaze/internal/systems/gamegear"
 	_ "github.com/Duc-inc/espaze/internal/systems/gba"

@@ -40,6 +40,7 @@ Bundling several emulators into a single launcher.
 | Game Boy Advance | ✅ Complete | `.gba` |
 | Neo Geo Pocket Color | ✅ Complete | `.ngp`, `.ngc` |
 | Super Nintendo | ✅ Complete | `.sfc`, `.smc` |
+| ColecoVision | ✅ Complete | `.col` |
 
 
 ## Tech stack

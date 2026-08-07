@@ -15,6 +15,7 @@ const SYSTEM_COLORS = {
     gba: 'var(--color-gba)',
     ngpc: 'var(--color-ngpc)',
     snes: 'var(--color-snes)',
+    colecovision: 'var(--color-colecovision)',
 };
 
 export function systemColor(systemId) {
