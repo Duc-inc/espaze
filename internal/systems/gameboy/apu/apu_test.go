@@ -20,10 +20,10 @@ func TestSquareChannelProducesSound(t *testing.T) {
 
 	// Channel 2: 50% duty, static volume 15 (envelope period 0 = no fade),
 	// a mid-range frequency, then trigger.
-	a.WriteRegister(0xFF16, 0x80)       // NR21: duty=10(50%), length=0
-	a.WriteRegister(0xFF17, 0xF0)       // NR22: volume=15, no envelope sweep
-	a.WriteRegister(0xFF18, 0x00)       // NR23: frequency low byte
-	a.WriteRegister(0xFF19, 0x87)       // NR24: frequency high=3, trigger=1
+	a.WriteRegister(0xFF16, 0x80) // NR21: duty=10(50%), length=0
+	a.WriteRegister(0xFF17, 0xF0) // NR22: volume=15, no envelope sweep
+	a.WriteRegister(0xFF18, 0x00) // NR23: frequency low byte
+	a.WriteRegister(0xFF19, 0x87) // NR24: frequency high=3, trigger=1
 
 	// Step one full frame's worth of cycles (matches gameboy.StepFrame).
 	a.Step(154 * 456)

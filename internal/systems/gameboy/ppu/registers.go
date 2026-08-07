@@ -14,11 +14,11 @@ const (
 
 // STAT interrupt-source bits (0xFF41).
 const (
-	statLYCEnable   = 1 << 6
-	statOAMEnable   = 1 << 5
+	statLYCEnable    = 1 << 6
+	statOAMEnable    = 1 << 5
 	statVBlankEnable = 1 << 4
 	statHBlankEnable = 1 << 3
-	statLYCFlag     = 1 << 2
+	statLYCFlag      = 1 << 2
 )
 
 // ReadRegister implements the CPU reading 0xFF40-0xFF4B (0xFF46/DMA is

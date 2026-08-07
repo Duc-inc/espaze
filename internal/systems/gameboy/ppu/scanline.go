@@ -31,11 +31,11 @@ type Snapshot struct {
 	VRAM [0x2000]byte
 	OAM  [0xA0]byte
 
-	LCDC, Stat     byte
-	SCY, SCX       byte
-	LY, LYC        byte
+	LCDC, Stat      byte
+	SCY, SCX        byte
+	LY, LYC         byte
 	BGP, OBP0, OBP1 byte
-	WY, WX         byte
+	WY, WX          byte
 
 	Mode      byte
 	ModeClock int

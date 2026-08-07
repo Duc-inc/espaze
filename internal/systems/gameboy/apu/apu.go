@@ -127,7 +127,7 @@ const amplitudeScale = 1800
 func (a *APU) mixSample() int16 {
 	sum, count := 0, 0
 	for _, active := range []struct {
-		on   bool
+		on    bool
 		level byte
 	}{
 		{a.ch1.active(), a.ch1.output()},

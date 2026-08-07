@@ -102,8 +102,8 @@ func TestCallAndReturn(t *testing.T) {
 
 func TestConditionalJumpRelative(t *testing.T) {
 	c, _ := newTestCPU(0xAF, 0x20, 0x02, 0x00, 0x00, 0x3E, 0x99) // XOR A ; JR NZ,+2 ; NOP;NOP ; LD A,0x99
-	c.Step() // XOR A -> A=0, Z set
-	c.Step() // JR NZ: Z is set, so NOT taken
+	c.Step()                                                     // XOR A -> A=0, Z set
+	c.Step()                                                     // JR NZ: Z is set, so NOT taken
 	if c.regs.PC != 0x0103 {
 		t.Fatalf("JR NZ should not have jumped: PC=0x%04X", c.regs.PC)
 	}
@@ -130,7 +130,7 @@ func TestCbBitResSet(t *testing.T) {
 func TestInterruptDispatchAndReturn(t *testing.T) {
 	c, bus := newTestCPU(0xFB, 0x00) // EI ; NOP
 	c.regs.SP = 0xFFFE
-	bus.mem[0x0040] = 0xD9 // RETI at the VBlank vector
+	bus.mem[0x0040] = 0xD9  // RETI at the VBlank vector
 	bus.Write(0xFFFF, 0x01) // IE: VBlank enabled
 	bus.Write(0xFF0F, 0x01) // IF: VBlank requested
 

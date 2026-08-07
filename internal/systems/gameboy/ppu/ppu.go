@@ -17,9 +17,9 @@ const (
 )
 
 const (
-	modeHBlank = 0
-	modeVBlank = 1
-	modeOAM    = 2
+	modeHBlank   = 0
+	modeVBlank   = 1
+	modeOAM      = 2
 	modeTransfer = 3
 )
 
@@ -37,11 +37,11 @@ type PPU struct {
 	vram [0x2000]byte
 	oam  [0xA0]byte
 
-	lcdc, stat            byte
-	scy, scx              byte
-	ly, lyc                byte
-	bgp, obp0, obp1        byte
-	wy, wx                 byte
+	lcdc, stat      byte
+	scy, scx        byte
+	ly, lyc         byte
+	bgp, obp0, obp1 byte
+	wy, wx          byte
 
 	mode      byte
 	modeClock int
@@ -63,11 +63,11 @@ func (p *PPU) Reset() {
 }
 
 // ReadVRAM/WriteVRAM implement CPU access to 0x8000-0x9FFF.
-func (p *PPU) ReadVRAM(addr uint16) byte    { return p.vram[addr-0x8000] }
+func (p *PPU) ReadVRAM(addr uint16) byte     { return p.vram[addr-0x8000] }
 func (p *PPU) WriteVRAM(addr uint16, v byte) { p.vram[addr-0x8000] = v }
 
 // ReadOAM/WriteOAM implement CPU (and DMA) access to 0xFE00-0xFE9F.
-func (p *PPU) ReadOAM(addr uint16) byte    { return p.oam[addr-0xFE00] }
+func (p *PPU) ReadOAM(addr uint16) byte     { return p.oam[addr-0xFE00] }
 func (p *PPU) WriteOAM(addr uint16, v byte) { p.oam[addr-0xFE00] = v }
 
 // FrameBuffer returns the most recently completed frame.
