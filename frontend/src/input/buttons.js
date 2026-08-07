@@ -117,6 +117,18 @@ const GBA_DEFAULT_KEYMAP = {
     ShiftLeft: 2, Enter: 3,
 };
 
+// Neo Geo Pocket (Color) bit layout matches internal/systems/ngpc/memory's
+// constants exactly (Up=0, Down=1, Left=2, Right=3, A=4, B=5, Option=6).
+const NGPC_BUTTONS = [
+    {bit: 0, label: 'Haut'}, {bit: 1, label: 'Bas'}, {bit: 2, label: 'Gauche'}, {bit: 3, label: 'Droite'},
+    {bit: 4, label: 'A'}, {bit: 5, label: 'B'}, {bit: 6, label: 'Option'},
+];
+
+const NGPC_DEFAULT_KEYMAP = {
+    ArrowUp: 0, ArrowDown: 1, ArrowLeft: 2, ArrowRight: 3,
+    KeyX: 4, KeyZ: 5, Enter: 6,
+};
+
 export const SYSTEM_BUTTONS = {
     chip8: CHIP8_BUTTONS,
     schip: CHIP8_BUTTONS,
@@ -129,6 +141,7 @@ export const SYSTEM_BUTTONS = {
     atari2600: ATARI2600_BUTTONS,
     pcengine: PCENGINE_BUTTONS,
     gba: GBA_BUTTONS,
+    ngpc: NGPC_BUTTONS,
 };
 
 export const DEFAULT_KEYMAPS = {
@@ -143,6 +156,7 @@ export const DEFAULT_KEYMAPS = {
     atari2600: ATARI2600_DEFAULT_KEYMAP,
     pcengine: PCENGINE_DEFAULT_KEYMAP,
     gba: GBA_DEFAULT_KEYMAP,
+    ngpc: NGPC_DEFAULT_KEYMAP,
 };
 
 export function buttonsForSystem(systemId) {
@@ -212,6 +226,12 @@ const GBA_GAMEPAD_MAP = {
     8: 2, 9: 3,                 // Back -> Select, Start -> Start
 };
 
+const NGPC_GAMEPAD_MAP = {
+    12: 0, 13: 1, 14: 2, 15: 3, // d-pad -> Up/Down/Left/Right
+    0: 4, 1: 5,                 // A -> A, B -> B
+    9: 6,                       // Start -> Option
+};
+
 const DEFAULT_GAMEPAD_MAPS = {
     chip8: CHIP8_GAMEPAD_MAP,
     schip: CHIP8_GAMEPAD_MAP,
@@ -224,6 +244,7 @@ const DEFAULT_GAMEPAD_MAPS = {
     atari2600: ATARI2600_GAMEPAD_MAP,
     pcengine: PCENGINE_GAMEPAD_MAP,
     gba: GBA_GAMEPAD_MAP,
+    ngpc: NGPC_GAMEPAD_MAP,
 };
 
 export function gamepadMapForSystem(systemId) {

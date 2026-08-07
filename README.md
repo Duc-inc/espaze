@@ -38,6 +38,7 @@ Bundling several emulators into a single launcher.
 | Atari 2600 | ✅ Complete | `.a26`, `.bin` |
 | PC Engine / TurboGrafx-16 | ✅ Complete | `.pce` |
 | Game Boy Advance | ✅ Complete | `.gba` |
+| Neo Geo Pocket Color | ✅ Complete | `.ngp`, `.ngc` |
 
 
 ## Tech stack

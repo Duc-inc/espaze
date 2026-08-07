@@ -15,6 +15,7 @@ const SYSTEMS = [
     {id: 'atari2600', label: 'Atari 2600'},
     {id: 'pcengine', label: 'PC Engine / TurboGrafx-16'},
     {id: 'gba', label: 'Game Boy Advance'},
+    {id: 'ngpc', label: 'Neo Geo Pocket Color'},
 ];
 
 /**

@@ -12,6 +12,7 @@ const SYSTEM_NAMES = {
     atari2600: 'Atari 2600',
     pcengine: 'PC Engine / TurboGrafx-16',
     gba: 'Game Boy Advance',
+    ngpc: 'Neo Geo Pocket Color',
 };
 
 export function systemName(systemId) {
