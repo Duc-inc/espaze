@@ -9,6 +9,7 @@ const SYSTEM_NAMES = {
     sms: 'Master System',
     genesis: 'Genesis / Mega Drive',
     gamegear: 'Game Gear',
+    atari2600: 'Atari 2600',
 };
 
 export function systemName(systemId) {

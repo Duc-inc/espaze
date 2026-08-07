@@ -35,6 +35,7 @@ Bundling several emulators into a single launcher.
 | Sega Master System | ✅ Complete | `.sms` |
 | Sega Genesis / Mega Drive | ✅ Complete | `.md`, `.bin`, `.gen` |
 | Sega Game Gear | ✅ Complete | `.gg` |
+| Atari 2600 | ✅ Complete | `.a26`, `.bin` |
 
 
 ## Tech stack

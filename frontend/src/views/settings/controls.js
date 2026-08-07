@@ -12,6 +12,7 @@ const SYSTEMS = [
     {id: 'sms', label: 'Master System'},
     {id: 'genesis', label: 'Genesis / Mega Drive'},
     {id: 'gamegear', label: 'Game Gear'},
+    {id: 'atari2600', label: 'Atari 2600'},
 ];
 
 /**

@@ -77,6 +77,18 @@ const GAMEGEAR_DEFAULT_KEYMAP = {
     KeyX: 4, KeyZ: 5, Enter: 6,
 };
 
+// Atari 2600 bit layout matches internal/systems/atari2600/riot's
+// constants exactly (Up=0, Down=1, Left=2, Right=3, Fire=4).
+const ATARI2600_BUTTONS = [
+    {bit: 0, label: 'Haut'}, {bit: 1, label: 'Bas'}, {bit: 2, label: 'Gauche'}, {bit: 3, label: 'Droite'},
+    {bit: 4, label: 'Feu'},
+];
+
+const ATARI2600_DEFAULT_KEYMAP = {
+    ArrowUp: 0, ArrowDown: 1, ArrowLeft: 2, ArrowRight: 3,
+    KeyX: 4,
+};
+
 export const SYSTEM_BUTTONS = {
     chip8: CHIP8_BUTTONS,
     schip: CHIP8_BUTTONS,
@@ -86,6 +98,7 @@ export const SYSTEM_BUTTONS = {
     sms: SMS_BUTTONS,
     genesis: GENESIS_BUTTONS,
     gamegear: GAMEGEAR_BUTTONS,
+    atari2600: ATARI2600_BUTTONS,
 };
 
 export const DEFAULT_KEYMAPS = {
@@ -97,6 +110,7 @@ export const DEFAULT_KEYMAPS = {
     sms: SMS_DEFAULT_KEYMAP,
     genesis: GENESIS_DEFAULT_KEYMAP,
     gamegear: GAMEGEAR_DEFAULT_KEYMAP,
+    atari2600: ATARI2600_DEFAULT_KEYMAP,
 };
 
 export function buttonsForSystem(systemId) {
@@ -148,6 +162,11 @@ const GAMEGEAR_GAMEPAD_MAP = {
     9: 6,                       // Start -> Start
 };
 
+const ATARI2600_GAMEPAD_MAP = {
+    12: 0, 13: 1, 14: 2, 15: 3, // d-pad -> Up/Down/Left/Right
+    0: 4,                       // A -> Fire
+};
+
 const DEFAULT_GAMEPAD_MAPS = {
     chip8: CHIP8_GAMEPAD_MAP,
     schip: CHIP8_GAMEPAD_MAP,
@@ -157,6 +176,7 @@ const DEFAULT_GAMEPAD_MAPS = {
     sms: SMS_GAMEPAD_MAP,
     genesis: GENESIS_GAMEPAD_MAP,
     gamegear: GAMEGEAR_GAMEPAD_MAP,
+    atari2600: ATARI2600_GAMEPAD_MAP,
 };
 
 export function gamepadMapForSystem(systemId) {

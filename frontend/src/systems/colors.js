@@ -10,6 +10,7 @@ const SYSTEM_COLORS = {
     sms: 'var(--color-sms)',
     genesis: 'var(--color-genesis)',
     gamegear: 'var(--color-gamegear)',
+    atari2600: 'var(--color-atari2600)',
 };
 
 export function systemColor(systemId) {
