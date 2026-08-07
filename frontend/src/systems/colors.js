@@ -11,6 +11,7 @@ const SYSTEM_COLORS = {
     genesis: 'var(--color-genesis)',
     gamegear: 'var(--color-gamegear)',
     atari2600: 'var(--color-atari2600)',
+    pcengine: 'var(--color-pcengine)',
 };
 
 export function systemColor(systemId) {

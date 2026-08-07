@@ -10,6 +10,7 @@ const SYSTEM_NAMES = {
     genesis: 'Genesis / Mega Drive',
     gamegear: 'Game Gear',
     atari2600: 'Atari 2600',
+    pcengine: 'PC Engine / TurboGrafx-16',
 };
 
 export function systemName(systemId) {

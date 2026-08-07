@@ -22,6 +22,7 @@ import (
 	_ "github.com/Duc-inc/espaze/internal/systems/gbc"
 	_ "github.com/Duc-inc/espaze/internal/systems/genesis"
 	_ "github.com/Duc-inc/espaze/internal/systems/nes"
+	_ "github.com/Duc-inc/espaze/internal/systems/pcengine"
 	_ "github.com/Duc-inc/espaze/internal/systems/schip"
 	_ "github.com/Duc-inc/espaze/internal/systems/sms"
 )

@@ -89,6 +89,19 @@ const ATARI2600_DEFAULT_KEYMAP = {
     KeyX: 4,
 };
 
+// PC Engine bit layout matches internal/systems/pcengine/memory's
+// constants exactly (Up=0, Down=1, Left=2, Right=3, ButtonI=4,
+// ButtonII=5, Select=6, Run=7).
+const PCENGINE_BUTTONS = [
+    {bit: 0, label: 'Haut'}, {bit: 1, label: 'Bas'}, {bit: 2, label: 'Gauche'}, {bit: 3, label: 'Droite'},
+    {bit: 4, label: 'I'}, {bit: 5, label: 'II'}, {bit: 6, label: 'Select'}, {bit: 7, label: 'Run'},
+];
+
+const PCENGINE_DEFAULT_KEYMAP = {
+    ArrowUp: 0, ArrowDown: 1, ArrowLeft: 2, ArrowRight: 3,
+    KeyX: 4, KeyZ: 5, ShiftLeft: 6, Enter: 7,
+};
+
 export const SYSTEM_BUTTONS = {
     chip8: CHIP8_BUTTONS,
     schip: CHIP8_BUTTONS,
@@ -99,6 +112,7 @@ export const SYSTEM_BUTTONS = {
     genesis: GENESIS_BUTTONS,
     gamegear: GAMEGEAR_BUTTONS,
     atari2600: ATARI2600_BUTTONS,
+    pcengine: PCENGINE_BUTTONS,
 };
 
 export const DEFAULT_KEYMAPS = {
@@ -111,6 +125,7 @@ export const DEFAULT_KEYMAPS = {
     genesis: GENESIS_DEFAULT_KEYMAP,
     gamegear: GAMEGEAR_DEFAULT_KEYMAP,
     atari2600: ATARI2600_DEFAULT_KEYMAP,
+    pcengine: PCENGINE_DEFAULT_KEYMAP,
 };
 
 export function buttonsForSystem(systemId) {
@@ -167,6 +182,12 @@ const ATARI2600_GAMEPAD_MAP = {
     0: 4,                       // A -> Fire
 };
 
+const PCENGINE_GAMEPAD_MAP = {
+    12: 0, 13: 1, 14: 2, 15: 3, // d-pad -> Up/Down/Left/Right
+    0: 4, 1: 5,                 // A -> I, B -> II
+    8: 6, 9: 7,                 // Back -> Select, Start -> Run
+};
+
 const DEFAULT_GAMEPAD_MAPS = {
     chip8: CHIP8_GAMEPAD_MAP,
     schip: CHIP8_GAMEPAD_MAP,
@@ -177,6 +198,7 @@ const DEFAULT_GAMEPAD_MAPS = {
     genesis: GENESIS_GAMEPAD_MAP,
     gamegear: GAMEGEAR_GAMEPAD_MAP,
     atari2600: ATARI2600_GAMEPAD_MAP,
+    pcengine: PCENGINE_GAMEPAD_MAP,
 };
 
 export function gamepadMapForSystem(systemId) {

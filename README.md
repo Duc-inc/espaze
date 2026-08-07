@@ -36,6 +36,7 @@ Bundling several emulators into a single launcher.
 | Sega Genesis / Mega Drive | ✅ Complete | `.md`, `.bin`, `.gen` |
 | Sega Game Gear | ✅ Complete | `.gg` |
 | Atari 2600 | ✅ Complete | `.a26`, `.bin` |
+| PC Engine / TurboGrafx-16 | ✅ Complete | `.pce` |
 
 
 ## Tech stack
