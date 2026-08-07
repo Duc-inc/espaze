@@ -102,6 +102,21 @@ const PCENGINE_DEFAULT_KEYMAP = {
     KeyX: 4, KeyZ: 5, ShiftLeft: 6, Enter: 7,
 };
 
+// GBA bit layout matches internal/systems/gba/memory's constants
+// exactly (A=0, B=1, Select=2, Start=3, Right=4, Left=5, Up=6, Down=7,
+// R=8, L=9).
+const GBA_BUTTONS = [
+    {bit: 6, label: 'Haut'}, {bit: 7, label: 'Bas'}, {bit: 5, label: 'Gauche'}, {bit: 4, label: 'Droite'},
+    {bit: 0, label: 'A'}, {bit: 1, label: 'B'}, {bit: 9, label: 'L'}, {bit: 8, label: 'R'},
+    {bit: 2, label: 'Select'}, {bit: 3, label: 'Start'},
+];
+
+const GBA_DEFAULT_KEYMAP = {
+    ArrowUp: 6, ArrowDown: 7, ArrowLeft: 5, ArrowRight: 4,
+    KeyX: 0, KeyZ: 1, KeyA: 9, KeyS: 8,
+    ShiftLeft: 2, Enter: 3,
+};
+
 export const SYSTEM_BUTTONS = {
     chip8: CHIP8_BUTTONS,
     schip: CHIP8_BUTTONS,
@@ -113,6 +128,7 @@ export const SYSTEM_BUTTONS = {
     gamegear: GAMEGEAR_BUTTONS,
     atari2600: ATARI2600_BUTTONS,
     pcengine: PCENGINE_BUTTONS,
+    gba: GBA_BUTTONS,
 };
 
 export const DEFAULT_KEYMAPS = {
@@ -126,6 +142,7 @@ export const DEFAULT_KEYMAPS = {
     gamegear: GAMEGEAR_DEFAULT_KEYMAP,
     atari2600: ATARI2600_DEFAULT_KEYMAP,
     pcengine: PCENGINE_DEFAULT_KEYMAP,
+    gba: GBA_DEFAULT_KEYMAP,
 };
 
 export function buttonsForSystem(systemId) {
@@ -188,6 +205,13 @@ const PCENGINE_GAMEPAD_MAP = {
     8: 6, 9: 7,                 // Back -> Select, Start -> Run
 };
 
+const GBA_GAMEPAD_MAP = {
+    12: 6, 13: 7, 14: 5, 15: 4, // d-pad -> Up/Down/Left/Right
+    0: 0, 1: 1,                 // A -> A, B -> B
+    4: 9, 5: 8,                 // L -> L, R -> R
+    8: 2, 9: 3,                 // Back -> Select, Start -> Start
+};
+
 const DEFAULT_GAMEPAD_MAPS = {
     chip8: CHIP8_GAMEPAD_MAP,
     schip: CHIP8_GAMEPAD_MAP,
@@ -199,6 +223,7 @@ const DEFAULT_GAMEPAD_MAPS = {
     gamegear: GAMEGEAR_GAMEPAD_MAP,
     atari2600: ATARI2600_GAMEPAD_MAP,
     pcengine: PCENGINE_GAMEPAD_MAP,
+    gba: GBA_GAMEPAD_MAP,
 };
 
 export function gamepadMapForSystem(systemId) {

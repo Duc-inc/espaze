@@ -12,6 +12,7 @@ const SYSTEM_COLORS = {
     gamegear: 'var(--color-gamegear)',
     atari2600: 'var(--color-atari2600)',
     pcengine: 'var(--color-pcengine)',
+    gba: 'var(--color-gba)',
 };
 
 export function systemColor(systemId) {

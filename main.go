@@ -19,6 +19,7 @@ import (
 	_ "github.com/Duc-inc/espaze/internal/systems/chip8"
 	_ "github.com/Duc-inc/espaze/internal/systems/gameboy"
 	_ "github.com/Duc-inc/espaze/internal/systems/gamegear"
+	_ "github.com/Duc-inc/espaze/internal/systems/gba"
 	_ "github.com/Duc-inc/espaze/internal/systems/gbc"
 	_ "github.com/Duc-inc/espaze/internal/systems/genesis"
 	_ "github.com/Duc-inc/espaze/internal/systems/nes"
