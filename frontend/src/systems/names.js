@@ -13,6 +13,7 @@ const SYSTEM_NAMES = {
     pcengine: 'PC Engine / TurboGrafx-16',
     gba: 'Game Boy Advance',
     ngpc: 'Neo Geo Pocket Color',
+    snes: 'Super Nintendo',
 };
 
 export function systemName(systemId) {

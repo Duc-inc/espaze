@@ -14,6 +14,7 @@ const SYSTEM_COLORS = {
     pcengine: 'var(--color-pcengine)',
     gba: 'var(--color-gba)',
     ngpc: 'var(--color-ngpc)',
+    snes: 'var(--color-snes)',
 };
 
 export function systemColor(systemId) {

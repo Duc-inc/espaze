@@ -39,6 +39,7 @@ Bundling several emulators into a single launcher.
 | PC Engine / TurboGrafx-16 | ✅ Complete | `.pce` |
 | Game Boy Advance | ✅ Complete | `.gba` |
 | Neo Geo Pocket Color | ✅ Complete | `.ngp`, `.ngc` |
+| Super Nintendo | ✅ Complete | `.sfc`, `.smc` |
 
 
 ## Tech stack

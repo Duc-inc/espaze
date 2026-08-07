@@ -27,6 +27,7 @@ import (
 	_ "github.com/Duc-inc/espaze/internal/systems/pcengine"
 	_ "github.com/Duc-inc/espaze/internal/systems/schip"
 	_ "github.com/Duc-inc/espaze/internal/systems/sms"
+	_ "github.com/Duc-inc/espaze/internal/systems/snes"
 )
 
 //go:embed all:frontend/dist

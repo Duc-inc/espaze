@@ -129,6 +129,21 @@ const NGPC_DEFAULT_KEYMAP = {
     KeyX: 4, KeyZ: 5, Enter: 6,
 };
 
+// SNES bit layout matches internal/systems/snes/memory's constants
+// exactly (B=0, Y=1, Select=2, Start=3, Up=4, Down=5, Left=6, Right=7,
+// A=8, X=9, L=10, R=11).
+const SNES_BUTTONS = [
+    {bit: 4, label: 'Haut'}, {bit: 5, label: 'Bas'}, {bit: 6, label: 'Gauche'}, {bit: 7, label: 'Droite'},
+    {bit: 8, label: 'A'}, {bit: 0, label: 'B'}, {bit: 9, label: 'X'}, {bit: 1, label: 'Y'},
+    {bit: 10, label: 'L'}, {bit: 11, label: 'R'}, {bit: 2, label: 'Select'}, {bit: 3, label: 'Start'},
+];
+
+const SNES_DEFAULT_KEYMAP = {
+    ArrowUp: 4, ArrowDown: 5, ArrowLeft: 6, ArrowRight: 7,
+    KeyX: 8, KeyZ: 0, KeyS: 9, KeyA: 1,
+    KeyQ: 10, KeyW: 11, ShiftLeft: 2, Enter: 3,
+};
+
 export const SYSTEM_BUTTONS = {
     chip8: CHIP8_BUTTONS,
     schip: CHIP8_BUTTONS,
@@ -142,6 +157,7 @@ export const SYSTEM_BUTTONS = {
     pcengine: PCENGINE_BUTTONS,
     gba: GBA_BUTTONS,
     ngpc: NGPC_BUTTONS,
+    snes: SNES_BUTTONS,
 };
 
 export const DEFAULT_KEYMAPS = {
@@ -157,6 +173,7 @@ export const DEFAULT_KEYMAPS = {
     pcengine: PCENGINE_DEFAULT_KEYMAP,
     gba: GBA_DEFAULT_KEYMAP,
     ngpc: NGPC_DEFAULT_KEYMAP,
+    snes: SNES_DEFAULT_KEYMAP,
 };
 
 export function buttonsForSystem(systemId) {
@@ -232,6 +249,13 @@ const NGPC_GAMEPAD_MAP = {
     9: 6,                       // Start -> Option
 };
 
+const SNES_GAMEPAD_MAP = {
+    12: 4, 13: 5, 14: 6, 15: 7, // d-pad -> Up/Down/Left/Right
+    0: 8, 1: 0, 2: 1, 3: 9,     // A -> A, B -> B, X -> Y, Y -> X
+    4: 10, 5: 11,               // L -> L, R -> R
+    8: 2, 9: 3,                 // Back -> Select, Start -> Start
+};
+
 const DEFAULT_GAMEPAD_MAPS = {
     chip8: CHIP8_GAMEPAD_MAP,
     schip: CHIP8_GAMEPAD_MAP,
@@ -245,6 +269,7 @@ const DEFAULT_GAMEPAD_MAPS = {
     pcengine: PCENGINE_GAMEPAD_MAP,
     gba: GBA_GAMEPAD_MAP,
     ngpc: NGPC_GAMEPAD_MAP,
+    snes: SNES_GAMEPAD_MAP,
 };
 
 export function gamepadMapForSystem(systemId) {
