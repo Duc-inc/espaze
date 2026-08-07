@@ -29,8 +29,11 @@ Bundling several emulators into a single launcher.
 |---|---|---|
 | CHIP-8 | ✅ Complete | `.ch8` |
 | Super-CHIP | ✅ Complete | `.sc8` |
-| Game Boy (DMG) | ✅ Complete  | `.gb` |
-| NES | 🚧 In progress  | `.nes` |
+| Game Boy (DMG) | ✅ Complete | `.gb` |
+| Game Boy Color | ✅ Complete | `.gbc` |
+| NES | ✅ Complete | `.nes` |
+| Sega Master System | ✅ Complete | `.sms` |
+| Sega Genesis / Mega Drive | ✅ Complete | `.md`, `.bin`, `.gen` |
 
 
 ## Tech stack

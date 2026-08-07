@@ -7,6 +7,7 @@ const SYSTEM_NAMES = {
     gbc: 'Game Boy Color',
     nes: 'NES',
     sms: 'Master System',
+    genesis: 'Genesis / Mega Drive',
 };
 
 export function systemName(systemId) {

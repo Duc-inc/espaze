@@ -8,6 +8,7 @@ const SYSTEM_COLORS = {
     gbc: 'var(--color-gbc)',
     nes: 'var(--color-nes)',
     sms: 'var(--color-sms)',
+    genesis: 'var(--color-genesis)',
 };
 
 export function systemColor(systemId) {

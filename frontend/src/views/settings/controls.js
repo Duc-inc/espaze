@@ -10,6 +10,7 @@ const SYSTEMS = [
     {id: 'gbc', label: 'Game Boy Color'},
     {id: 'nes', label: 'NES'},
     {id: 'sms', label: 'Master System'},
+    {id: 'genesis', label: 'Genesis / Mega Drive'},
 ];
 
 /**

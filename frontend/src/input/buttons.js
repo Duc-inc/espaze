@@ -52,6 +52,18 @@ const SMS_DEFAULT_KEYMAP = {
     KeyX: 4, KeyZ: 5, Enter: 6,
 };
 
+// Genesis bit layout matches internal/systems/genesis/memory/controller.go's
+// constants exactly (Up=0, Down=1, Left=2, Right=3, B=4, C=5, A=6, Start=7).
+const GENESIS_BUTTONS = [
+    {bit: 0, label: 'Haut'}, {bit: 1, label: 'Bas'}, {bit: 2, label: 'Gauche'}, {bit: 3, label: 'Droite'},
+    {bit: 6, label: 'A'}, {bit: 4, label: 'B'}, {bit: 5, label: 'C'}, {bit: 7, label: 'Start'},
+];
+
+const GENESIS_DEFAULT_KEYMAP = {
+    ArrowUp: 0, ArrowDown: 1, ArrowLeft: 2, ArrowRight: 3,
+    KeyZ: 6, KeyX: 4, KeyC: 5, Enter: 7,
+};
+
 export const SYSTEM_BUTTONS = {
     chip8: CHIP8_BUTTONS,
     schip: CHIP8_BUTTONS,
@@ -59,6 +71,7 @@ export const SYSTEM_BUTTONS = {
     gbc: GAMEBOY_BUTTONS, // same 8 buttons, same bit layout as DMG - see gbc/memory joypad reuse
     nes: NES_BUTTONS,
     sms: SMS_BUTTONS,
+    genesis: GENESIS_BUTTONS,
 };
 
 export const DEFAULT_KEYMAPS = {
@@ -68,6 +81,7 @@ export const DEFAULT_KEYMAPS = {
     gbc: GAMEBOY_DEFAULT_KEYMAP,
     nes: NES_DEFAULT_KEYMAP,
     sms: SMS_DEFAULT_KEYMAP,
+    genesis: GENESIS_DEFAULT_KEYMAP,
 };
 
 export function buttonsForSystem(systemId) {
@@ -107,6 +121,12 @@ const SMS_GAMEPAD_MAP = {
     9: 6,                       // Start -> Pause
 };
 
+const GENESIS_GAMEPAD_MAP = {
+    12: 0, 13: 1, 14: 2, 15: 3, // d-pad -> Up/Down/Left/Right
+    0: 6, 1: 4, 2: 5,           // A -> A, B -> B, X -> C
+    9: 7,                       // Start -> Start
+};
+
 const DEFAULT_GAMEPAD_MAPS = {
     chip8: CHIP8_GAMEPAD_MAP,
     schip: CHIP8_GAMEPAD_MAP,
@@ -114,6 +134,7 @@ const DEFAULT_GAMEPAD_MAPS = {
     gbc: GAMEBOY_GAMEPAD_MAP,
     nes: NES_GAMEPAD_MAP,
     sms: SMS_GAMEPAD_MAP,
+    genesis: GENESIS_GAMEPAD_MAP,
 };
 
 export function gamepadMapForSystem(systemId) {
