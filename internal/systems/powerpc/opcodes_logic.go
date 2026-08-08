@@ -81,4 +81,49 @@ func init() {
 		}
 		return 2
 	})
+	setExt31(284, func(c *CPU, instr uint32) int { // eqv
+		rS, rA, rB := fieldRD(instr), fieldRA(instr), fieldRB(instr)
+		result := ^(c.regs.GPR[rS] ^ c.regs.GPR[rB])
+		c.regs.GPR[rA] = result
+		if fieldRC(instr) {
+			c.regs.setCR0(result)
+		}
+		return 2
+	})
+	setExt31(60, func(c *CPU, instr uint32) int { // andc
+		rS, rA, rB := fieldRD(instr), fieldRA(instr), fieldRB(instr)
+		result := c.regs.GPR[rS] &^ c.regs.GPR[rB]
+		c.regs.GPR[rA] = result
+		if fieldRC(instr) {
+			c.regs.setCR0(result)
+		}
+		return 2
+	})
+	setExt31(412, func(c *CPU, instr uint32) int { // orc
+		rS, rA, rB := fieldRD(instr), fieldRA(instr), fieldRB(instr)
+		result := c.regs.GPR[rS] | ^c.regs.GPR[rB]
+		c.regs.GPR[rA] = result
+		if fieldRC(instr) {
+			c.regs.setCR0(result)
+		}
+		return 2
+	})
+	setExt31(954, func(c *CPU, instr uint32) int { // extsb
+		rS, rA := fieldRD(instr), fieldRA(instr)
+		result := uint32(int32(int8(c.regs.GPR[rS])))
+		c.regs.GPR[rA] = result
+		if fieldRC(instr) {
+			c.regs.setCR0(result)
+		}
+		return 2
+	})
+	setExt31(922, func(c *CPU, instr uint32) int { // extsh
+		rS, rA := fieldRD(instr), fieldRA(instr)
+		result := uint32(int32(int16(c.regs.GPR[rS])))
+		c.regs.GPR[rA] = result
+		if fieldRC(instr) {
+			c.regs.setCR0(result)
+		}
+		return 2
+	})
 }

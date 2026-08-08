@@ -46,3 +46,15 @@ func fieldLK(instr uint32) bool   { return instr&0x01 != 0 }
 // most other extended opcodes use.
 func fieldFRC(instr uint32) uint32     { return (instr >> 6) & 0x1F }
 func fieldAFormXO(instr uint32) uint32 { return (instr >> 1) & 0x1F }
+
+// fieldSH, fieldMB, and fieldME are specific to M-form rotate/mask
+// instructions (rlwinm/rlwimi/rlwnm): SH (the immediate rotate amount,
+// bits 16-20) sits at the same position fieldRB already extracts;
+// MB/ME (the mask's first/last bit, bits 21-25 and 26-30) happen to
+// share their bit positions with fieldFRC and fieldAFormXO
+// respectively, but are given their own names here since reusing
+// those A-form-flavored names at an M-form call site would be
+// confusing.
+func fieldSH(instr uint32) uint32 { return (instr >> 11) & 0x1F }
+func fieldMB(instr uint32) uint32 { return (instr >> 6) & 0x1F }
+func fieldME(instr uint32) uint32 { return (instr >> 1) & 0x1F }
