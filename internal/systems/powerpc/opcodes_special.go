@@ -31,4 +31,11 @@ func init() {
 		c.regs.GPR[fieldRD(instr)] = c.regs.CR
 		return 2
 	})
+
+	setPrimary(17, func(c *CPU, instr uint32) int { // sc
+		if c.SyscallHandler != nil {
+			c.SyscallHandler(c)
+		}
+		return 2
+	})
 }

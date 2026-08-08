@@ -4,6 +4,15 @@ package powerpc
 type CPU struct {
 	regs registers
 	bus  Bus
+
+	// SyscallHandler, if set, is called whenever the `sc` instruction
+	// executes - real hardware raises a system-call exception instead;
+	// this project has no exception vector table, so a direct hook is
+	// this project's own stand-in for it, meant for high-level
+	// emulation (HLE) of the small set of IPL/OS calls software
+	// actually needs rather than interpreting real IPL firmware this
+	// project doesn't have.
+	SyscallHandler func(c *CPU)
 }
 
 // New wires a CPU to its bus and resets it.
@@ -20,6 +29,13 @@ func (c *CPU) Reset() { c.regs = registers{} }
 
 // PC exposes the program counter, mainly for tests.
 func (c *CPU) PC() uint32 { return c.regs.PC }
+
+// SetPC/SetGPR let a caller set up initial execution state - this
+// project's own stand-in for what real IPL firmware would otherwise
+// arrange before jumping into game code.
+func (c *CPU) SetPC(addr uint32)        { c.regs.PC = addr }
+func (c *CPU) SetGPR(reg int, v uint32) { c.regs.GPR[reg&0x1F] = v }
+func (c *CPU) GPR(reg int) uint32       { return c.regs.GPR[reg&0x1F] }
 
 func (c *CPU) fetch32() uint32 {
 	v := c.bus.Read32(c.regs.PC)
