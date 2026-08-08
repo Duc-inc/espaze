@@ -60,6 +60,54 @@ func TestFloatNegAndAbs(t *testing.T) {
 	}
 }
 
+func TestSinglePrecisionArithmetic(t *testing.T) {
+	fadds := uint32(59)<<26 | 3<<21 | 1<<16 | 2<<11 | 21<<1
+	fsubs := uint32(59)<<26 | 4<<21 | 1<<16 | 2<<11 | 20<<1
+	fmuls := uint32(59)<<26 | 5<<21 | 1<<16 | 0<<11 | 2<<6 | 25<<1
+	fdivs := uint32(59)<<26 | 6<<21 | 1<<16 | 2<<11 | 18<<1
+	c, _ := newTestCPU([]uint32{fadds, fsubs, fmuls, fdivs})
+	c.regs.FPR[1] = 5.0
+	c.regs.FPR[2] = 2.0
+
+	c.Step()
+	if c.regs.FPR[3] != 7.0 {
+		t.Fatalf("FPR3 (fadds) = %v, want 7.0", c.regs.FPR[3])
+	}
+	c.Step()
+	if c.regs.FPR[4] != 3.0 {
+		t.Fatalf("FPR4 (fsubs) = %v, want 3.0", c.regs.FPR[4])
+	}
+	c.Step()
+	if c.regs.FPR[5] != 10.0 {
+		t.Fatalf("FPR5 (fmuls) = %v, want 10.0", c.regs.FPR[5])
+	}
+	c.Step()
+	if c.regs.FPR[6] != 2.5 {
+		t.Fatalf("FPR6 (fdivs) = %v, want 2.5", c.regs.FPR[6])
+	}
+}
+
+func TestSinglePrecisionArithmeticRoundsToFloat32(t *testing.T) {
+	// fadds f3,f1,f2: 1/3 + 1/3 in double precision has more mantissa
+	// bits than a float32 can hold, so the single-precision result must
+	// differ from the plain double-precision sum.
+	fadds := uint32(59)<<26 | 3<<21 | 1<<16 | 2<<11 | 21<<1
+	c, _ := newTestCPU([]uint32{fadds})
+	c.regs.FPR[1] = 1.0 / 3.0
+	c.regs.FPR[2] = 1.0 / 3.0
+
+	c.Step()
+
+	want := float64(float32(1.0/3.0) + float32(1.0/3.0))
+	if c.regs.FPR[3] != want {
+		t.Fatalf("FPR3 = %v, want %v (rounded through float32)", c.regs.FPR[3], want)
+	}
+	doubleSum := 1.0/3.0 + 1.0/3.0
+	if c.regs.FPR[3] == doubleSum {
+		t.Fatal("expected single-precision result to differ from the plain double-precision sum")
+	}
+}
+
 func TestFloatCompareSetsConditionRegister(t *testing.T) {
 	// fcmpu cr0,f1,f2 (ext63=0)
 	fcmpu := uint32(63)<<26 | 0<<21 | 1<<16 | 2<<11

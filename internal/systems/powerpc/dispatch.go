@@ -29,6 +29,13 @@ var ext63ATable = map[uint32]func(c *CPU, instr uint32) int{}
 var ext4Table = map[uint32]func(c *CPU, instr uint32) int{}
 var ext4ATable = map[uint32]func(c *CPU, instr uint32) int{}
 
+// ext59ATable dispatches primary opcode 59's A-form extended opcode:
+// single-precision floating point arithmetic (fadds/fsubs/fmuls/
+// fdivs), the standard PowerPC ISA's single-precision counterpart to
+// primary 63's double-precision instructions - same xo values, this
+// project's own opcodes_fpu.go mirrors that pairing directly.
+var ext59ATable = map[uint32]func(c *CPU, instr uint32) int{}
+
 func setPrimary(op uint32, fn func(c *CPU, instr uint32) int)  { primaryTable[op] = fn }
 func setExt31(extOp uint32, fn func(c *CPU, instr uint32) int) { ext31Table[extOp] = fn }
 func setExt19(extOp uint32, fn func(c *CPU, instr uint32) int) { ext19Table[extOp] = fn }
@@ -36,6 +43,7 @@ func setExt63(extOp uint32, fn func(c *CPU, instr uint32) int) { ext63Table[extO
 func setExt63A(xo uint32, fn func(c *CPU, instr uint32) int)   { ext63ATable[xo] = fn }
 func setExt4(extOp uint32, fn func(c *CPU, instr uint32) int)  { ext4Table[extOp] = fn }
 func setExt4A(xo uint32, fn func(c *CPU, instr uint32) int)    { ext4ATable[xo] = fn }
+func setExt59A(xo uint32, fn func(c *CPU, instr uint32) int)   { ext59ATable[xo] = fn }
 
 func init() {
 	setPrimary(31, func(c *CPU, instr uint32) int {
@@ -64,6 +72,12 @@ func init() {
 			return fn(c, instr)
 		}
 		if fn, ok := ext4Table[fieldExtOp(instr)]; ok {
+			return fn(c, instr)
+		}
+		return 2
+	})
+	setPrimary(59, func(c *CPU, instr uint32) int {
+		if fn, ok := ext59ATable[fieldAFormXO(instr)]; ok {
 			return fn(c, instr)
 		}
 		return 2

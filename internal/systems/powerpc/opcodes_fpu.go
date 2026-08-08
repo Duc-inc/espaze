@@ -89,6 +89,32 @@ func init() {
 		c.regs.FPR[fieldRD(instr)] = math.Abs(c.regs.FPR[fieldRB(instr)])
 		return 4
 	})
+	// Primary 59: single-precision counterparts of the above (same xo
+	// values under a different primary opcode, standard PowerPC ISA
+	// layout) - the result is rounded to float32 precision after the
+	// double-precision computation, matching real hardware's own
+	// single-precision arithmetic semantics.
+	setExt59A(21, func(c *CPU, instr uint32) int { // fadds
+		frD, frA, frB := fieldRD(instr), fieldRA(instr), fieldRB(instr)
+		c.regs.FPR[frD] = float64(float32(c.regs.FPR[frA] + c.regs.FPR[frB]))
+		return 4
+	})
+	setExt59A(20, func(c *CPU, instr uint32) int { // fsubs
+		frD, frA, frB := fieldRD(instr), fieldRA(instr), fieldRB(instr)
+		c.regs.FPR[frD] = float64(float32(c.regs.FPR[frA] - c.regs.FPR[frB]))
+		return 4
+	})
+	setExt59A(25, func(c *CPU, instr uint32) int { // fmuls (uses frC, not frB)
+		frD, frA, frC := fieldRD(instr), fieldRA(instr), fieldFRC(instr)
+		c.regs.FPR[frD] = float64(float32(c.regs.FPR[frA] * c.regs.FPR[frC]))
+		return 4
+	})
+	setExt59A(18, func(c *CPU, instr uint32) int { // fdivs
+		frD, frA, frB := fieldRD(instr), fieldRA(instr), fieldRB(instr)
+		c.regs.FPR[frD] = float64(float32(c.regs.FPR[frA] / c.regs.FPR[frB]))
+		return 20
+	})
+
 	setExt63(0, func(c *CPU, instr uint32) int { // fcmpu
 		a, b := c.regs.FPR[fieldRA(instr)], c.regs.FPR[fieldRB(instr)]
 		var field uint32
