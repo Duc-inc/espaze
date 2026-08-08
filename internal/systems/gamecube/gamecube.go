@@ -20,7 +20,10 @@ import (
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/ai"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/audio"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/di"
+	"github.com/Duc-inc/espaze/internal/systems/gamecube/disc"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/gpu"
+	"github.com/Duc-inc/espaze/internal/systems/gamecube/hle"
+	"github.com/Duc-inc/espaze/internal/systems/gamecube/ipl"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/memory"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/pi"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/si"
@@ -74,6 +77,8 @@ type GameCube struct {
 	WGP *wgp.WGP
 	CP  *gpu.CommandProcessor
 	FB  *gpu.Framebuffer
+
+	hle *hle.Table
 
 	gpPending []byte
 }
@@ -224,3 +229,26 @@ func (g *GameCube) SetGPR(reg int, v uint32) { g.proc.SetGPR(reg, v) }
 
 // PC exposes the current program counter, mainly for tests/tools.
 func (g *GameCube) PC() uint32 { return g.proc.PC() }
+
+// Boot runs the real apploader-based boot path (ipl.BootViaApploader)
+// against this GameCube's own bus/CPU: parses image's disc header,
+// loads its apploader code into MEM1, configures the BAT mapping real
+// IPL firmware would (see ipl's own doc comments), and sets PC to the
+// apploader's entry point - ready for Step to actually start running
+// it, exactly like passing discImage to New wires up DI's reads but
+// doesn't itself execute anything.
+func (g *GameCube) Boot(image []byte) (disc.Header, ipl.ApploaderInfo, error) {
+	return ipl.BootViaApploader(image, g.bus, g.proc)
+}
+
+// InstallHLE wires up a high-level-emulated function (see the hle
+// package's doc comment for what that means and why) at addr: real
+// code that reaches addr runs fn's Go implementation instead of
+// interpreting real SDK code this project doesn't have. The
+// underlying hle.Table is created on first use.
+func (g *GameCube) InstallHLE(addr uint32, fn hle.Func) {
+	if g.hle == nil {
+		g.hle = hle.New(g.bus)
+	}
+	g.hle.Install(g.proc, addr, fn)
+}
