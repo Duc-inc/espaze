@@ -1,6 +1,6 @@
 // Package gamecube wires the from-scratch PowerPC CPU
 // (internal/systems/powerpc) to this platform's own physical memory
-// map (internal/systems/gamecube/memory), the real VI/SI/DI/AI/PI
+// map (internal/systems/gamecube/memory), the real VI/SI/DI/AI/EXI/PI
 // hardware register peripherals, and (via wgp, the real Write Gather
 // Pipe mechanism) the gpu package's Command Processor and software
 // rasterizer. A game's real GX command stream - LOAD_XF_REG/LOAD_CP_
@@ -21,6 +21,7 @@ import (
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/audio"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/di"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/disc"
+	"github.com/Duc-inc/espaze/internal/systems/gamecube/exi"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/gpu"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/hle"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/ipl"
@@ -45,10 +46,11 @@ type GameCube struct {
 	bus  *memory.Bus
 	proc *powerpc.CPU
 
-	VI *vi.VI
-	SI *si.SI
-	DI *di.DI
-	AI *ai.AI
+	VI  *vi.VI
+	SI  *si.SI
+	DI  *di.DI
+	AI  *ai.AI
+	EXI *exi.EXI
 
 	// PI is the Processor Interface: real hardware's own interrupt
 	// router, ORing every peripheral's cause into the CPU's single
@@ -97,8 +99,8 @@ func (r busMemoryReader) ReadBytes(addr uint32, length int) []byte {
 }
 
 // New wires a fresh CPU, memory bus, and every peripheral (VI/SI/DI/
-// AI/PI/WGP/CP/FB) together and resets the CPU/RAM. discImage may be
-// nil if there's no disc to serve DI reads from yet.
+// AI/EXI/PI/WGP/CP/FB) together and resets the CPU/RAM. discImage may
+// be nil if there's no disc to serve DI reads from yet.
 func New(discImage []byte) *GameCube {
 	g := &GameCube{bus: memory.New()}
 	g.proc = powerpc.New(g.bus)
@@ -107,6 +109,7 @@ func New(discImage []byte) *GameCube {
 	g.SI = si.New()
 	g.DI = di.New(discImage, g.bus)
 	g.AI = ai.New()
+	g.EXI = exi.New()
 	g.Audio = audio.New()
 	g.PI = pi.New()
 	g.WGP = wgp.New()
@@ -118,6 +121,7 @@ func New(discImage []byte) *GameCube {
 	g.bus.Attach(si.Base, si.Size, g.SI)
 	g.bus.Attach(di.Base, di.Size, g.DI)
 	g.bus.Attach(ai.Base, ai.Size, g.AI)
+	g.bus.Attach(exi.Base, exi.Size, g.EXI)
 	g.bus.Attach(pi.Base, pi.Size, g.PI)
 	g.bus.Attach(wgp.Base, wgp.Size, g.WGP)
 

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/ai"
+	"github.com/Duc-inc/espaze/internal/systems/gamecube/exi"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/hle"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/pi"
 	"github.com/Duc-inc/espaze/internal/systems/powerpc"
@@ -98,6 +99,20 @@ func TestDITransferCompleteRaisesRealExternalInterrupt(t *testing.T) {
 
 	if g.proc.PC() != powerpc.ExternalInterruptVector {
 		t.Fatalf("PC after DI transfer complete = %#x, want external interrupt vector %#x", g.proc.PC(), powerpc.ExternalInterruptVector)
+	}
+}
+
+func TestEXIDataRegisterReachableFromRealPowerPCCode(t *testing.T) {
+	g := New(nil)
+	g.proc.SetGPR(4, exi.Base+0x10) // channel 0's EXIDATA offset
+	g.proc.SetGPR(3, 0xCAFEBABE)
+	instr := uint32(36)<<26 | 3<<21 | 4<<16 // stw r3,0(r4)
+	g.LoadAt(0, []byte{byte(instr >> 24), byte(instr >> 16), byte(instr >> 8), byte(instr)})
+
+	g.Step()
+
+	if got := g.EXI.Read32(0x10); got != 0xCAFEBABE {
+		t.Fatalf("EXI channel 0 DATA = %#08x, want 0xcafebabe: expected a real stw through the CPU to reach it", got)
 	}
 }
 
