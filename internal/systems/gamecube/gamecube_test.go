@@ -5,6 +5,7 @@ import (
 
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/ai"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/pi"
+	"github.com/Duc-inc/espaze/internal/systems/gamecube/wgp"
 	"github.com/Duc-inc/espaze/internal/systems/powerpc"
 )
 
@@ -97,6 +98,80 @@ func TestDITransferCompleteRaisesRealExternalInterrupt(t *testing.T) {
 
 	if g.proc.PC() != powerpc.ExternalInterruptVector {
 		t.Fatalf("PC after DI transfer complete = %#x, want external interrupt vector %#x", g.proc.PC(), powerpc.ExternalInterruptVector)
+	}
+}
+
+// TestEndToEndCPUDrivenDrawRendersATriangle is this project's proof
+// that the whole chain actually works, not just each piece in
+// isolation: a real hand-assembled PowerPC program (lbz/stb pairs,
+// real load/store opcodes) copies a real GX command stream byte by
+// byte to wgp.Base - the real Write Gather Pipe address - exactly the
+// way real game code would. No test helper pokes CP/XF state directly;
+// everything happens through g.Step() executing real instructions and
+// g.FlushGP() draining the real WGP -> CP -> Framebuffer pipeline.
+func TestEndToEndCPUDrivenDrawRendersATriangle(t *testing.T) {
+	g := New(nil)
+
+	// New() already sets up an identity position matrix and a no-op
+	// orthographic projection/viewport (gpu.New's own doc comment), so
+	// a vertex's X/Y pass straight through to screen pixels - no XF/CP
+	// register setup needed for this test.
+	vertex := func(x, y, z int16) []byte {
+		return []byte{
+			byte(x >> 8), byte(x), byte(y >> 8), byte(y), byte(z >> 8), byte(z),
+			0, 0, 0, 0, 0, 0, // normal (unused: default white ambient, no lights)
+			255, 255, 255, 255, // color: opaque white
+			0, 0, 0, 0, // uv
+		}
+	}
+	const cmdDrawTriangles = 0x90
+	stream := []byte{cmdDrawTriangles, 0x00, 0x03}
+	stream = append(stream, vertex(50, 50, 0)...)
+	stream = append(stream, vertex(590, 50, 0)...)
+	stream = append(stream, vertex(320, 430, 0)...)
+	for len(stream)%wgp.Size != 0 { // real GX code pads to the WGP's 32-byte burst size
+		stream = append(stream, 0x00) // cmdNop
+	}
+
+	const srcAddr = 0x2000
+	g.LoadAt(srcAddr, stream)
+
+	// lbz r6,i(r3) ; stb r6,0(r4) for every byte - r3 holds srcAddr,
+	// r4 holds wgp.Base, both set below via SetGPR (this project's own
+	// stand-in for what IPL/OS startup code would otherwise arrange).
+	var progBytes []byte
+	emit := func(instr uint32) {
+		progBytes = append(progBytes, byte(instr>>24), byte(instr>>16), byte(instr>>8), byte(instr))
+	}
+	for i := range stream {
+		emit(uint32(34)<<26 | 6<<21 | 3<<16 | uint32(uint16(i))) // lbz r6,i(r3)
+		emit(uint32(38)<<26 | 6<<21 | 4<<16 | 0)                 // stb r6,0(r4)
+	}
+	const progAddr = 0x4000
+	g.LoadAt(progAddr, progBytes)
+
+	g.proc.SetGPR(3, srcAddr)
+	g.proc.SetGPR(4, wgp.Base)
+	g.proc.SetPC(progAddr)
+
+	instrCount := len(progBytes) / 4
+	for i := 0; i < instrCount; i++ {
+		g.Step()
+	}
+	g.FlushGP()
+
+	fb := g.FB.FrameBuffer()
+	// (320,200) sits inside the triangle (50,50)-(590,50)-(320,430).
+	idx := (200*fb.Width + 320) * 4
+	r, gg, b := fb.Pixels[idx], fb.Pixels[idx+1], fb.Pixels[idx+2]
+	if r != 255 || gg != 255 || b != 255 {
+		t.Fatalf("pixel at (320,200) = (%d,%d,%d), want (255,255,255): a real CPU-driven GX draw should have rasterized a white triangle there", r, gg, b)
+	}
+	// A point clearly outside the triangle should remain the cleared
+	// background, confirming this isn't just a full-white framebuffer.
+	outIdx := (10*fb.Width + 10) * 4
+	if fb.Pixels[outIdx] != 0 {
+		t.Fatalf("pixel at (10,10) = %d, want 0 (background, outside the triangle)", fb.Pixels[outIdx])
 	}
 }
 

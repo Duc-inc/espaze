@@ -34,6 +34,31 @@ func TestResetClearsMEM1(t *testing.T) {
 	}
 }
 
+type fakeStreamPeripheral struct{ written []byte }
+
+func (p *fakeStreamPeripheral) StreamByte(v byte)           { p.written = append(p.written, v) }
+func (p *fakeStreamPeripheral) Read32(offset uint32) uint32 { return 0 }
+func (p *fakeStreamPeripheral) Write32(offset, val uint32)  {}
+
+func TestStreamPeripheralGetsRawByteWritesInOrder(t *testing.T) {
+	b := New()
+	dev := &fakeStreamPeripheral{}
+	b.Attach(hwRegBase, 0x100, dev)
+
+	b.Write8(hwRegBase, 0xAA)
+	b.Write32(hwRegBase, 0x01020304)
+
+	want := []byte{0xAA, 0x01, 0x02, 0x03, 0x04}
+	if len(dev.written) != len(want) {
+		t.Fatalf("written = %v, want %v", dev.written, want)
+	}
+	for i, v := range want {
+		if dev.written[i] != v {
+			t.Fatalf("written = %v, want %v", dev.written, want)
+		}
+	}
+}
+
 type fakePeripheral struct{ reg uint32 }
 
 func (p *fakePeripheral) Read32(offset uint32) uint32       { return p.reg }

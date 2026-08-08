@@ -1,24 +1,40 @@
 // Package gamecube wires the from-scratch PowerPC CPU
 // (internal/systems/powerpc) to this platform's own physical memory
-// map (internal/systems/gamecube/memory) plus the real VI/SI/DI/AI
-// hardware register peripherals. It deliberately does NOT implement
-// core.Core and is NOT registered with the emulation registry - see
-// the memory package's own doc comment for why: there is still no GX
-// pipeline wired in here, so this can run arbitrary PowerPC code and
-// drive real peripheral registers but cannot display a real game yet.
-// This is groundwork for a future GameCube core, not a shipped
-// feature.
+// map (internal/systems/gamecube/memory), the real VI/SI/DI/AI/PI
+// hardware register peripherals, and (via wgp, the real Write Gather
+// Pipe mechanism) the gpu package's Command Processor and software
+// rasterizer. A game's real GX command stream - LOAD_XF_REG/LOAD_CP_
+// REG/LOAD_BP_REG writes and draw commands - reaches gpu.
+// CommandProcessor exactly the way it would on real hardware: PowerPC
+// store instructions to 0xCC008000, gathered into 32-byte bursts,
+// flushed into the pipeline by FlushGP. This is real, working
+// groundwork - see the ipl/hle packages for how a game gets loaded and
+// run - but it still isn't registered with the emulation registry or
+// core.Core: there's no encrypted-disc/authentication handling, no
+// real VAT-driven vertex formats, and TEV is a simplified single-op-
+// per-stage stand-in (see gpu's own doc comments), so a real
+// commercial game is not expected to render correctly end to end yet.
 package gamecube
 
 import (
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/ai"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/audio"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/di"
+	"github.com/Duc-inc/espaze/internal/systems/gamecube/gpu"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/memory"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/pi"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/si"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/vi"
+	"github.com/Duc-inc/espaze/internal/systems/gamecube/wgp"
 	"github.com/Duc-inc/espaze/internal/systems/powerpc"
+)
+
+// defaultFBWidth/Height match real NTSC GameCube output's common
+// resolution - this project's own choice of framebuffer size, not a
+// hardware register any game configures here.
+const (
+	defaultFBWidth  = 640
+	defaultFBHeight = 480
 )
 
 // GameCube wires the CPU to its memory bus and hardware peripherals.
@@ -45,11 +61,38 @@ type GameCube struct {
 	// AI.Volume()'s L/R scaling isn't applied to Audio's output - Mixer
 	// only produces one mixed mono sample, not a stereo pair.
 	Audio *audio.Mixer
+
+	// WGP is the Write Gather Pipe (see package doc) - PowerPC stores to
+	// wgp.Base land here, not directly on CP. gpPending accumulates
+	// completed 32-byte bursts every Step, mirroring the real GP FIFO's
+	// own memory continuously filling; FlushGP is what actually feeds
+	// the accumulated bytes to CP and rasterizes whatever triangles that
+	// produces, matching real GX_Flush/GX_DrawDone's role - real games
+	// decide when to flush, so this project doesn't do it implicitly
+	// inside Step.
+	WGP *wgp.WGP
+	CP  *gpu.CommandProcessor
+	FB  *gpu.Framebuffer
+
+	gpPending []byte
 }
 
-// New wires a fresh CPU, memory bus, and VI/SI/DI/AI peripherals
-// together and resets the CPU/RAM. discImage may be nil if there's no
-// disc to serve DI reads from yet.
+// busMemoryReader adapts *memory.Bus to gpu.MemoryReader, so CP can
+// resolve indexed vertex attributes (vertexformat.go's ARRAY_BASE/
+// STRIDE) and CALL_DISPLAY_LIST targets against real MEM1 contents.
+type busMemoryReader struct{ bus *memory.Bus }
+
+func (r busMemoryReader) ReadBytes(addr uint32, length int) []byte {
+	out := make([]byte, length)
+	for i := range out {
+		out[i] = r.bus.Read8(addr + uint32(i))
+	}
+	return out
+}
+
+// New wires a fresh CPU, memory bus, and every peripheral (VI/SI/DI/
+// AI/PI/WGP/CP/FB) together and resets the CPU/RAM. discImage may be
+// nil if there's no disc to serve DI reads from yet.
 func New(discImage []byte) *GameCube {
 	g := &GameCube{bus: memory.New()}
 	g.proc = powerpc.New(g.bus)
@@ -60,12 +103,17 @@ func New(discImage []byte) *GameCube {
 	g.AI = ai.New()
 	g.Audio = audio.New()
 	g.PI = pi.New()
+	g.WGP = wgp.New()
+	g.CP = gpu.New()
+	g.FB = gpu.NewFramebuffer(defaultFBWidth, defaultFBHeight)
+	g.CP.SetMemoryReader(busMemoryReader{g.bus})
 
 	g.bus.Attach(vi.Base, vi.Size, g.VI)
 	g.bus.Attach(si.Base, si.Size, g.SI)
 	g.bus.Attach(di.Base, di.Size, g.DI)
 	g.bus.Attach(ai.Base, ai.Size, g.AI)
 	g.bus.Attach(pi.Base, pi.Size, g.PI)
+	g.bus.Attach(wgp.Base, wgp.Size, g.WGP)
 
 	return g
 }
@@ -88,6 +136,8 @@ func (g *GameCube) Reset() {
 // very next Step. Real hardware ticks VI/AI on their own pixel/sample
 // clocks, independent of CPU instruction count; tying them to one Step
 // call each is this project's own simplification, not a timing claim.
+// Any Write Gather Pipe bursts completed this Step are appended to
+// gpPending - see FlushGP for when they actually reach CP.
 func (g *GameCube) Step() int {
 	cycles := g.proc.Step()
 	g.VI.Step()
@@ -103,7 +153,27 @@ func (g *GameCube) Step() int {
 	if g.AI.Playing() {
 		g.Audio.Step(1)
 	}
+
+	for _, burst := range g.WGP.DrainBursts() {
+		g.gpPending = append(g.gpPending, burst...)
+	}
 	return cycles
+}
+
+// FlushGP feeds every byte accumulated from the Write Gather Pipe
+// since the last flush to CP.Execute, then rasterizes every triangle
+// that produced into FB - this project's stand-in for a game calling
+// GX_Flush/GX_DrawDone (real code always pads a command list to a
+// 32-byte multiple before relying on it having reached CP, exactly
+// because of the WGP's own gathering behavior - see wgp's doc
+// comment), and for the Pixel Engine that would otherwise consume
+// finished primitives as CP produces them.
+func (g *GameCube) FlushGP() {
+	g.CP.Execute(g.gpPending)
+	g.gpPending = nil
+	for _, tri := range g.CP.DrainTriangles() {
+		g.FB.DrawTriangle(tri)
+	}
 }
 
 // LoadAt copies data directly into MEM1 at the given physical address
@@ -114,3 +184,12 @@ func (g *GameCube) LoadAt(addr uint32, data []byte) {
 		g.bus.Write8(addr+uint32(i), v)
 	}
 }
+
+// SetPC/SetGPR seed the CPU's initial execution state - this
+// project's own stand-in for what real IPL firmware or a boot loader
+// (ipl.BootViaApploader) would otherwise arrange before running code.
+func (g *GameCube) SetPC(addr uint32)        { g.proc.SetPC(addr) }
+func (g *GameCube) SetGPR(reg int, v uint32) { g.proc.SetGPR(reg, v) }
+
+// PC exposes the current program counter, mainly for tests/tools.
+func (g *GameCube) PC() uint32 { return g.proc.PC() }

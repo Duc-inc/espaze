@@ -25,6 +25,17 @@ type Peripheral interface {
 	Write32(offset uint32, val uint32)
 }
 
+// StreamPeripheral is an optional interface a Peripheral can also
+// implement for a byte-order-sensitive streaming write port (the
+// wgp package's Write Gather Pipe is the only current example) - one
+// where every byte matters in write order and the generic register
+// read-modify-write path Write8 otherwise uses (via Read32/Write32)
+// wouldn't make sense, since there's no addressable "current value" to
+// read back mid-stream.
+type StreamPeripheral interface {
+	StreamByte(v byte)
+}
+
 type region struct {
 	base, size uint32
 	dev        Peripheral
@@ -92,6 +103,10 @@ func (b *Bus) Write8(addr uint32, v byte) {
 		b.mem1[addr-mem1Base] = v
 	default:
 		if dev, base := b.peripheralAt(addr); dev != nil {
+			if sp, ok := dev.(StreamPeripheral); ok {
+				sp.StreamByte(v)
+				return
+			}
 			off := addr - base
 			wordOff := off &^ 3
 			shift := 24 - 8*(off&3)

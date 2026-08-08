@@ -14,13 +14,20 @@ type Framebuffer struct {
 	zbuffer       []int32
 }
 
-// NewFramebuffer allocates a black frame and a cleared Z-buffer.
+// NewFramebuffer allocates a black frame and a cleared Z-buffer. This
+// calls Clear itself: a zero-initialized Z-buffer (Go's default for a
+// fresh []int32) reads as "nearest possible", not "far", which would
+// make every triangle at Z>=0 fail its very first depth test - every
+// caller used to have to remember to call Clear() before the first
+// draw to avoid that; now it's not possible to forget.
 func NewFramebuffer(width, height int) *Framebuffer {
-	return &Framebuffer{
+	f := &Framebuffer{
 		Width: width, Height: height,
 		frame:   video.NewFrameBuffer(width, height),
 		zbuffer: make([]int32, width*height),
 	}
+	f.Clear()
+	return f
 }
 
 // Clear resets the color buffer to black and the Z-buffer to "far".
