@@ -18,6 +18,8 @@ const (
 	gameNameOffset = 0x20
 	gameNameLen    = 0x3E0
 	dolOffsetAddr  = 0x0420
+	fstOffsetAddr  = 0x0424
+	fstSizeAddr    = 0x0428
 )
 
 // Header holds the fields this project reads from a disc image's
@@ -26,6 +28,8 @@ type Header struct {
 	GameID    string // 6-byte disc ID + maker code
 	GameName  string
 	DOLOffset uint32
+	FSTOffset uint32
+	FSTSize   uint32
 }
 
 // ParseHeader reads a disc image's header and validates the magic
@@ -46,6 +50,8 @@ func ParseHeader(image []byte) (Header, error) {
 		GameID:    string(image[0:6]),
 		GameName:  string(name[:end]),
 		DOLOffset: be32(image[dolOffsetAddr:]),
+		FSTOffset: be32(image[fstOffsetAddr:]),
+		FSTSize:   be32(image[fstSizeAddr:]),
 	}, nil
 }
 
