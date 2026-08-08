@@ -165,6 +165,28 @@ func TestXFRegistersSelectPositionMatrixViaRealMatrixSelection0(t *testing.T) {
 	}
 }
 
+func TestXFAmbientColorRegisterWriteDrivesRealLighting(t *testing.T) {
+	cp := New()
+	cp.SetLight(0, xf.Light{}) // no lights: isolate ambient's own contribution
+
+	stream := loadXFRegBytes(xf.RegAmbientColor0, 0x80000000) // R=128, G=B=0
+	stream = append(stream, cmdDrawTriangles, 0x00, 0x03)
+	v := Vertex{X: 0, Y: 0, Z: 0, R: 255, G: 255, B: 255, A: 255}
+	stream = append(stream, vertexBytesOf(v)...)
+	stream = append(stream, vertexBytesOf(v)...)
+	stream = append(stream, vertexBytesOf(v)...)
+	cp.Execute(stream)
+
+	tris := cp.DrainTriangles()
+	if len(tris) != 1 {
+		t.Fatalf("got %d triangles, want 1", len(tris))
+	}
+	if tris[0].V0.R != 128 || tris[0].V0.G != 0 || tris[0].V0.B != 0 {
+		t.Fatalf("color = (%d,%d,%d), want (128,0,0): a real LOAD_XF_REG write to RegAmbientColor0 should drive lighting, not just SetAmbient",
+			tris[0].V0.R, tris[0].V0.G, tris[0].V0.B)
+	}
+}
+
 func TestXFLightMemoryWriteDrivesRealLighting(t *testing.T) {
 	cp := New()
 	// Identity normal matrix at the default GeometryIndex(0) address.

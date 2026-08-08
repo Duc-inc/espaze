@@ -157,17 +157,17 @@ func (cp *CommandProcessor) SetMemoryReader(m MemoryReader) {
 }
 
 // SetAmbient sets the constant ambient light term applied to every
-// vertex transformed after this call - a stand-in for real hardware's
-// XF-register-driven ambient color, which isn't decoded from the
-// command stream yet.
+// vertex transformed after this call - a caller-driven override on
+// top of what a LOAD_XF_REG write to xf.RegAmbientColor0 already sets
+// automatically (decode.go).
 func (cp *CommandProcessor) SetAmbient(a xf.Ambient) {
 	cp.ambient = a
 }
 
-// SetLight sets one of up to xf.MaxLights point lights - a stand-in
-// for real hardware's XF-register-driven light object uploads, which
-// aren't decoded from the command stream yet. An out-of-range index
-// is ignored.
+// SetLight sets one of up to xf.MaxLights point lights directly - a
+// caller-driven override on top of what LOAD_XF_REG writes into XF's
+// real light-memory block already populate automatically (decode.go).
+// An out-of-range index is ignored.
 func (cp *CommandProcessor) SetLight(index int, l xf.Light) {
 	if index < 0 || index >= len(cp.lights) {
 		return

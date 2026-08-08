@@ -108,6 +108,13 @@ type Registers struct {
 	MatrixSelection0 MatrixSelection0
 	MatrixSelection1 MatrixSelection1
 
+	// Ambient decodes RegAmbientColor0 as a packed RGBA word, the same
+	// convention lightmemory.go's ReadLight uses for light colors.
+	// RegAmbientColor1 (the second color channel real hardware also
+	// exposes) stays raw-only, matching this project's single-channel
+	// lighting model (lighting.go's Illuminate takes one Ambient).
+	Ambient Ambient
+
 	Viewport   Viewport
 	Projection Projection
 
@@ -151,6 +158,8 @@ func (r *Registers) Write(addr uint16, word uint32) {
 		r.Projection.Type = ProjectionType(word & 1)
 	case addr == RegNumTexGens:
 		r.NumTexGens = word
+	case addr == RegAmbientColor0:
+		r.Ambient.Color = rgba8ToLightColor(word)
 	case addr >= RegTexCoordCtrlStart && addr < RegTexCoordCtrlStart+8:
 		r.TexGen[addr-RegTexCoordCtrlStart] = TexGen{Raw: word}
 	case addr >= RegPostTexCtrlStart && addr < RegPostTexCtrlStart+8:

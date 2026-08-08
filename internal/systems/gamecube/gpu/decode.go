@@ -55,6 +55,9 @@ func (cp *CommandProcessor) execute(stream []byte, depth int) {
 			if idx, ok := xf.LightIndexForAddr(reg); ok {
 				cp.lights[idx] = cp.xfState.Memory.ReadLight(idx)
 			}
+			if reg == xf.RegAmbientColor0 {
+				cp.ambient = cp.xfState.Registers.Ambient
+			}
 			pos += 6
 		case opcode == cmdLoadBPReg:
 			if pos+4 > len(stream) {
