@@ -52,6 +52,19 @@ func (v *VI) FramebufferAddr() uint32 { return v.topFieldAddr }
 // Enabled reports whether video timing generation is on (DCR's ENB bit).
 func (v *VI) Enabled() bool { return v.enabled }
 
+// AnyInterruptActive reports whether any of VI's 4 display interrupts
+// is currently active (its status bit set, not yet cleared by a game
+// writing DI0-3 back) - the level-triggered cause signal pi.PI's VI
+// bit reports (see gamecube.go's Step).
+func (v *VI) AnyInterruptActive() bool {
+	for _, d := range v.interrupts {
+		if d.active {
+			return true
+		}
+	}
+	return false
+}
+
 // Read32 reads one VI register at a block-relative offset.
 func (v *VI) Read32(offset uint32) uint32 {
 	switch {

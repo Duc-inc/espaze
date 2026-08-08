@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/ai"
+	"github.com/Duc-inc/espaze/internal/systems/gamecube/pi"
 	"github.com/Duc-inc/espaze/internal/systems/powerpc"
 )
 
@@ -38,12 +39,26 @@ func TestPeripheralRegistersAreReachableFromRealPowerPCCode(t *testing.T) {
 func TestVIVBlankRaisesRealExternalInterrupt(t *testing.T) {
 	g := New(nil)
 	g.proc.SetMSR(powerpc.MSREE)
-	g.VI.Write32(0x30, 1<<28|1) // DI0: enabled, target line 1 (vpos after one Step)
+	g.PI.Write32(0x04, 1<<pi.BitVI) // INTMR: unmask VI
+	g.VI.Write32(0x30, 1<<28|1)     // DI0: enabled, target line 1 (vpos after one Step)
 
 	g.Step()
 
 	if g.proc.PC() != powerpc.ExternalInterruptVector {
 		t.Fatalf("PC after VBlank = %#x, want external interrupt vector %#x", g.proc.PC(), powerpc.ExternalInterruptVector)
+	}
+}
+
+func TestMaskedInterruptDoesNotReachTheCPU(t *testing.T) {
+	g := New(nil)
+	g.proc.SetMSR(powerpc.MSREE)
+	// INTMR left at 0 (everything masked).
+	g.VI.Write32(0x30, 1<<28|1)
+
+	g.Step()
+
+	if g.proc.PC() == powerpc.ExternalInterruptVector {
+		t.Fatal("expected a masked VI interrupt not to reach the CPU")
 	}
 }
 

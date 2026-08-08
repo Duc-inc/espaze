@@ -39,6 +39,12 @@ func (a *AI) Playing() bool { return a.playing }
 // Volume returns the left/right channel volumes (0-255).
 func (a *AI) Volume() (l, r byte) { return a.volumeL, a.volumeR }
 
+// Interrupting reports whether AI's sample-count interrupt is
+// currently active (not yet cleared by a game writing AICR's AIINT
+// bit) - the level-triggered cause signal pi.PI's AI bit reports (see
+// gamecube.go's Step).
+func (a *AI) Interrupting() bool { return a.interrupt }
+
 // Step advances the sample counter by one stereo sample while playing
 // and reports whether the interrupt-timing match just fired.
 func (a *AI) Step() (interrupted bool) {

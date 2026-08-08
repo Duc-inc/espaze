@@ -15,6 +15,7 @@ import (
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/audio"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/di"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/memory"
+	"github.com/Duc-inc/espaze/internal/systems/gamecube/pi"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/si"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/vi"
 	"github.com/Duc-inc/espaze/internal/systems/powerpc"
@@ -29,6 +30,13 @@ type GameCube struct {
 	SI *si.SI
 	DI *di.DI
 	AI *ai.AI
+
+	// PI is the Processor Interface: real hardware's own interrupt
+	// router, ORing every peripheral's cause into the CPU's single
+	// external interrupt line (see Step). A game reads/masks interrupt
+	// causes through PI's real INTSR/INTMR registers, not through each
+	// peripheral directly.
+	PI *pi.PI
 
 	// Audio is the sample mixer AI's PSTAT bit gates (Step below) - AI
 	// itself only tracks streaming on/off and volume, it has no sample
@@ -51,11 +59,13 @@ func New(discImage []byte) *GameCube {
 	g.DI = di.New(discImage, g.bus)
 	g.AI = ai.New()
 	g.Audio = audio.New()
+	g.PI = pi.New()
 
 	g.bus.Attach(vi.Base, vi.Size, g.VI)
 	g.bus.Attach(si.Base, si.Size, g.SI)
 	g.bus.Attach(di.Base, di.Size, g.DI)
 	g.bus.Attach(ai.Base, ai.Size, g.AI)
+	g.bus.Attach(pi.Base, pi.Size, g.PI)
 
 	return g
 }
@@ -68,20 +78,27 @@ func (g *GameCube) Reset() {
 	g.proc.Reset()
 }
 
-// Step executes exactly one PowerPC instruction, then ticks VI/AI and
-// delivers a real external interrupt exception (see powerpc's
-// exceptions.go) if either just fired. Real hardware ticks VI/AI on
-// their own pixel/sample clocks, independent of CPU instruction
-// count; tying them to one Step call each is this project's own
-// simplification, not a timing claim.
+// Step executes exactly one PowerPC instruction, ticks VI/AI, reports
+// their current interrupt state into PI (real hardware's own interrupt
+// router - PI.SetCause), and delivers a real external interrupt
+// exception (powerpc's exceptions.go) if PI reports any unmasked cause
+// still pending. This is level-triggered like real hardware: a game
+// that returns from the exception without clearing the source (VI's
+// DI0-3, AI's AICR AIINT bit) sees the interrupt fire again on the
+// very next Step. Real hardware ticks VI/AI on their own pixel/sample
+// clocks, independent of CPU instruction count; tying them to one Step
+// call each is this project's own simplification, not a timing claim.
 func (g *GameCube) Step() int {
 	cycles := g.proc.Step()
-	if g.VI.Step() {
+	g.VI.Step()
+	g.AI.Step()
+
+	g.PI.SetCause(pi.BitVI, g.VI.AnyInterruptActive())
+	g.PI.SetCause(pi.BitAI, g.AI.Interrupting())
+	if g.PI.Pending() {
 		g.proc.RaiseExternalInterrupt()
 	}
-	if g.AI.Step() {
-		g.proc.RaiseExternalInterrupt()
-	}
+
 	if g.AI.Playing() {
 		g.Audio.Step(1)
 	}
