@@ -1,5 +1,7 @@
 package powerpc
 
+import "math/bits"
+
 func init() {
 	setPrimary(24, func(c *CPU, instr uint32) int { // ori
 		rS, rA := fieldRD(instr), fieldRA(instr)
@@ -124,6 +126,27 @@ func init() {
 		if fieldRC(instr) {
 			c.regs.setCR0(result)
 		}
+		return 2
+	})
+	setExt31(26, func(c *CPU, instr uint32) int { // cntlzw
+		rS, rA := fieldRD(instr), fieldRA(instr)
+		result := uint32(bits.LeadingZeros32(c.regs.GPR[rS]))
+		c.regs.GPR[rA] = result
+		if fieldRC(instr) {
+			c.regs.setCR0(result)
+		}
+		return 2
+	})
+	setExt31(144, func(c *CPU, instr uint32) int { // mtcrf
+		rS := c.regs.GPR[fieldRD(instr)]
+		fxm := (instr >> 12) & 0xFF // field mask, bits 12-19
+		var mask uint32
+		for field := 0; field < 8; field++ {
+			if fxm&(1<<uint(7-field)) != 0 {
+				mask |= 0xF << uint(4*(7-field))
+			}
+		}
+		c.regs.CR = c.regs.CR&^mask | rS&mask
 		return 2
 	})
 }

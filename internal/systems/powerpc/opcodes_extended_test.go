@@ -222,6 +222,77 @@ func TestStmwStoresConsecutiveRegisters(t *testing.T) {
 	}
 }
 
+func TestAddcAddeCarryChain(t *testing.T) {
+	// addc r3,r1,r2: 0xFFFFFFFF + 2 overflows 32 bits -> carry set.
+	addc := xForm(31, 3, 1, 2, 10, false)
+	// adde r4,r5,r6 + carry-in from addc above.
+	adde := xForm(31, 4, 5, 6, 138, false)
+	c, _ := newTestCPU([]uint32{addc, adde})
+	c.regs.GPR[1] = 0xFFFFFFFF
+	c.regs.GPR[2] = 2
+	c.regs.GPR[5] = 10
+	c.regs.GPR[6] = 20
+
+	c.Step()
+	if c.regs.GPR[3] != 1 {
+		t.Fatalf("GPR3 (addc) = %d, want 1", c.regs.GPR[3])
+	}
+	if !c.regs.getXER(XERCarry) {
+		t.Fatal("expected carry set after addc overflow")
+	}
+	c.Step()
+	if c.regs.GPR[4] != 31 { // 10+20+1(carry-in)
+		t.Fatalf("GPR4 (adde) = %d, want 31", c.regs.GPR[4])
+	}
+}
+
+func TestSubfcSubfeBorrowChain(t *testing.T) {
+	// subfc r3,r1,r2: rB-rA = 5-10 = -5 -> borrow -> carry clear.
+	subfc := xForm(31, 3, 1, 2, 8, false)
+	subfe := xForm(31, 4, 5, 6, 136, false)
+	c, _ := newTestCPU([]uint32{subfc, subfe})
+	c.regs.GPR[1] = 10
+	c.regs.GPR[2] = 5
+	c.regs.GPR[5] = 3
+	c.regs.GPR[6] = 10
+
+	c.Step()
+	if int32(c.regs.GPR[3]) != -5 {
+		t.Fatalf("GPR3 (subfc) = %d, want -5", int32(c.regs.GPR[3]))
+	}
+	if c.regs.getXER(XERCarry) {
+		t.Fatal("expected carry clear after subfc borrow")
+	}
+	c.Step()
+	if int32(c.regs.GPR[4]) != 6 { // 10-3-1(no carry-in, i.e. borrow propagated)
+		t.Fatalf("GPR4 (subfe) = %d, want 6", int32(c.regs.GPR[4]))
+	}
+}
+
+func TestCntlzwCountsLeadingZeros(t *testing.T) {
+	cntlzw := xForm(31, 1, 3, 0, 26, false)
+	c, _ := newTestCPU([]uint32{cntlzw})
+	c.regs.GPR[1] = 0x0000_00F0 // 24 leading zeros
+
+	c.Step()
+	if c.regs.GPR[3] != 24 {
+		t.Fatalf("GPR3 (cntlzw) = %d, want 24", c.regs.GPR[3])
+	}
+}
+
+func TestMtcrfUpdatesOnlySelectedFields(t *testing.T) {
+	// mtcrf 0x80,r1: FXM=0x80 selects only CR field 0 (the top 4 bits).
+	instr := uint32(31)<<26 | 1<<21 | 0x80<<12 | 144<<1
+	c, _ := newTestCPU([]uint32{instr})
+	c.regs.GPR[1] = 0xFFFFFFFF
+	c.regs.CR = 0x0000000F // field 7 pre-set, should survive untouched
+
+	c.Step()
+	if c.regs.CR != 0xF000000F {
+		t.Fatalf("CR = %#08x, want 0xf000000f (only field 0 updated)", c.regs.CR)
+	}
+}
+
 func TestMemoryBarriersAreHarmlessNoOps(t *testing.T) {
 	sync := xForm(31, 0, 0, 0, 598, false)
 	eieio := xForm(31, 0, 0, 0, 854, false)

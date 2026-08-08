@@ -105,6 +105,55 @@ func init() {
 		return 2
 	})
 
+	setExt31(10, func(c *CPU, instr uint32) int { // addc
+		rD, rA, rB := fieldRD(instr), fieldRA(instr), fieldRB(instr)
+		result, carry := addWithCarry(c.regs.GPR[rA], c.regs.GPR[rB], 0)
+		c.regs.GPR[rD] = result
+		c.regs.setXER(XERCarry, carry)
+		if fieldRC(instr) {
+			c.regs.setCR0(result)
+		}
+		return 2
+	})
+	setExt31(138, func(c *CPU, instr uint32) int { // adde
+		rD, rA, rB := fieldRD(instr), fieldRA(instr), fieldRB(instr)
+		carryIn := uint32(0)
+		if c.regs.getXER(XERCarry) {
+			carryIn = 1
+		}
+		result, carry := addWithCarry(c.regs.GPR[rA], c.regs.GPR[rB], carryIn)
+		c.regs.GPR[rD] = result
+		c.regs.setXER(XERCarry, carry)
+		if fieldRC(instr) {
+			c.regs.setCR0(result)
+		}
+		return 2
+	})
+	setExt31(8, func(c *CPU, instr uint32) int { // subfc
+		rD, rA, rB := fieldRD(instr), fieldRA(instr), fieldRB(instr)
+		result, carry := addWithCarry(^c.regs.GPR[rA], c.regs.GPR[rB], 1)
+		c.regs.GPR[rD] = result
+		c.regs.setXER(XERCarry, carry)
+		if fieldRC(instr) {
+			c.regs.setCR0(result)
+		}
+		return 2
+	})
+	setExt31(136, func(c *CPU, instr uint32) int { // subfe
+		rD, rA, rB := fieldRD(instr), fieldRA(instr), fieldRB(instr)
+		carryIn := uint32(0)
+		if c.regs.getXER(XERCarry) {
+			carryIn = 1
+		}
+		result, carry := addWithCarry(^c.regs.GPR[rA], c.regs.GPR[rB], carryIn)
+		c.regs.GPR[rD] = result
+		c.regs.setXER(XERCarry, carry)
+		if fieldRC(instr) {
+			c.regs.setCR0(result)
+		}
+		return 2
+	})
+
 	setPrimary(8, func(c *CPU, instr uint32) int { // subfic
 		rD, rA := fieldRD(instr), fieldRA(instr)
 		result, carry := addWithCarry(^c.regs.GPR[rA], uint32(fieldSimm(instr)), 1)
