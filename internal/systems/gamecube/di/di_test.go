@@ -28,6 +28,18 @@ func TestReadSectorCommandDMAsFromImage(t *testing.T) {
 	}
 }
 
+func TestInterruptingRequiresLocalMaskToo(t *testing.T) {
+	d := New(nil, &fakeMem{})
+	d.tcint = true
+	if d.Interrupting() {
+		t.Fatal("expected not interrupting: TCINTMASK is still clear")
+	}
+	d.Write32(regDISR, bitTCINTMASK)
+	if !d.Interrupting() {
+		t.Fatal("expected interrupting once TCINTMASK is set")
+	}
+}
+
 func TestWritingTCINTClearsIt(t *testing.T) {
 	d := New(nil, &fakeMem{})
 	d.tcint = true

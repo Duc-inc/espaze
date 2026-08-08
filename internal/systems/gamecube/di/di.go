@@ -2,12 +2,10 @@
 // memory-mapped registers a game uses to read the disc, replacing
 // this project's other "just call disc.ParseHeader directly" approach
 // with the actual hardware path real games use. Addresses, the DMA
-// register layout, and the 0xA8 read-sector command come from a
-// public hardware register reference (YAGCD chapter 5, "DI - DVD
-// Interface"); DISR's exact status/mask bit numbering wasn't cleanly
-// legible in that source, so it's modeled on the well-known status-
-// bit-then-mask-bit pairing convention this kind of register commonly
-// uses, not a directly confirmed bit table.
+// register layout, the 0xA8 read-sector command, and DISR's bit table
+// come from a public hardware register reference (YAGCD chapter 5,
+// section 5.7, "DI - DVD Interface"), looked up directly against that
+// source.
 package di
 
 const (
@@ -24,7 +22,18 @@ const (
 
 	cmdReadSector = 0xA8
 
-	bitTCINT = 1 << 0 // transfer-complete interrupt status
+	// DISR bits (YAGCD 5.7). BRKINT/TCINT/DEINT are status bits,
+	// write-1-to-clear; their paired MASK bit gates whether that status
+	// reaches PI's DI interrupt line (see Interrupting). BRK requests a
+	// break of the current transfer - not modeled, this project's DMA
+	// always completes in one execute() call.
+	bitBRKINT     = 1 << 6
+	bitBRKINTMASK = 1 << 5
+	bitTCINT      = 1 << 4
+	bitTCINTMASK  = 1 << 3
+	bitDEINT      = 1 << 2
+	bitDEINTMASK  = 1 << 1
+	bitBRK        = 1 << 0
 )
 
 // MemWriter is the subset of main memory access DI needs to DMA disc
@@ -41,7 +50,14 @@ type DI struct {
 
 	cmdBuf0, cmdBuf1, cmdBuf2 uint32
 	dimar, dilength           uint32
-	tcint                     bool
+
+	// tcint/deint/brkint are DISR's status bits; this project only ever
+	// sets tcint (execute() always "succeeds" - no error or break path
+	// is modeled), but all three plus their mask bits are still stored
+	// and readable/writable for a game that polls DISR's full layout.
+	tcint, tcintMask   bool
+	deint, deintMask   bool
+	brkint, brkintMask bool
 }
 
 // New returns a DI serving reads from image, DMA'ing into mem.
@@ -49,18 +65,35 @@ func New(image []byte, mem MemWriter) *DI {
 	return &DI{image: image, mem: mem}
 }
 
-// Interrupting reports whether DI's transfer-complete interrupt is
-// currently active (not yet cleared by a game writing DISR's TCINT
-// bit) - the level-triggered cause signal pi.PI's DI bit reports (see
-// gamecube.go's Step).
-func (d *DI) Interrupting() bool { return d.tcint }
+// Interrupting reports whether any of DI's status bits is both active
+// and unmasked - the level-triggered cause signal pi.PI's DI bit
+// reports (see gamecube.go's Step). Real hardware ORs all three
+// status/mask pairs onto the same interrupt line.
+func (d *DI) Interrupting() bool {
+	return (d.tcint && d.tcintMask) || (d.deint && d.deintMask) || (d.brkint && d.brkintMask)
+}
 
 func (d *DI) Read32(offset uint32) uint32 {
 	switch offset {
 	case regDISR:
 		var v uint32
+		if d.brkint {
+			v |= bitBRKINT
+		}
+		if d.brkintMask {
+			v |= bitBRKINTMASK
+		}
 		if d.tcint {
 			v |= bitTCINT
+		}
+		if d.tcintMask {
+			v |= bitTCINTMASK
+		}
+		if d.deint {
+			v |= bitDEINT
+		}
+		if d.deintMask {
+			v |= bitDEINTMASK
 		}
 		return v
 	case regCMDBUF0:
@@ -81,9 +114,18 @@ func (d *DI) Read32(offset uint32) uint32 {
 func (d *DI) Write32(offset uint32, val uint32) {
 	switch offset {
 	case regDISR:
+		if val&bitBRKINT != 0 {
+			d.brkint = false // write-1-to-clear
+		}
 		if val&bitTCINT != 0 {
 			d.tcint = false // write-1-to-clear
 		}
+		if val&bitDEINT != 0 {
+			d.deint = false // write-1-to-clear
+		}
+		d.brkintMask = val&bitBRKINTMASK != 0
+		d.tcintMask = val&bitTCINTMASK != 0
+		d.deintMask = val&bitDEINTMASK != 0
 	case regCMDBUF0:
 		d.cmdBuf0 = val
 	case regCMDBUF1:

@@ -87,6 +87,7 @@ func TestDITransferCompleteRaisesRealExternalInterrupt(t *testing.T) {
 	g := New(make([]byte, 0x100))
 	g.proc.SetMSR(powerpc.MSREE)
 	g.PI.Write32(0x04, 1<<pi.BitDI) // INTMR: unmask DI
+	g.DI.Write32(0x00, 1<<3)        // DISR: TCINTMASK=1 (DI's own local mask)
 
 	g.DI.Write32(0x08, 0) // CMDBUF0: read-sector opcode 0
 	g.DI.Write32(0x18, 4) // DILENGTH
