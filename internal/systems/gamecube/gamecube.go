@@ -175,20 +175,35 @@ func (g *GameCube) Step() int {
 }
 
 // FlushGP feeds every byte accumulated from the Write Gather Pipe
-// since the last flush to CP.Execute, then rasterizes every triangle
-// that produced into FB - this project's stand-in for a game calling
-// GX_Flush/GX_DrawDone (real code always pads a command list to a
-// 32-byte multiple before relying on it having reached CP, exactly
-// because of the WGP's own gathering behavior - see wgp's doc
-// comment), and for the Pixel Engine that would otherwise consume
-// finished primitives as CP produces them. Step already calls this
-// automatically at vblank; call it directly for finer control (e.g. to
-// see a partial draw before a frame ends).
+// since the last flush to CP.Execute, rasterizes every triangle that
+// produced into FB, then - if VI is enabled and has a real
+// framebuffer address configured (TFBL, VI.FramebufferAddr) - encodes
+// FB into the real YUY2 byte layout (gpu.EncodeXFB) and writes it to
+// MEM1 at that address, exactly where real VI's video encoder would
+// read a real game's XFB from. A game that hasn't set up TFBL yet
+// (FramebufferAddr() == 0, the power-on default) isn't written to,
+// since address 0 is where boot code lives, not a real framebuffer.
+// This is this project's stand-in for a game calling GX_Flush/GX_
+// DrawDone (real code always pads a command list to a 32-byte
+// multiple before relying on it having reached CP, exactly because of
+// the WGP's own gathering behavior - see wgp's doc comment) and for
+// the Pixel Engine that would otherwise consume finished primitives as
+// CP produces them. Step already calls this automatically at vblank;
+// call it directly for finer control (e.g. to see a partial draw
+// before a frame ends).
 func (g *GameCube) FlushGP() {
 	g.CP.Execute(g.gpPending)
 	g.gpPending = nil
 	for _, tri := range g.CP.DrainTriangles() {
 		g.FB.DrawTriangle(tri)
+	}
+
+	if g.VI.Enabled() {
+		if addr := g.VI.FramebufferAddr(); addr != 0 {
+			for i, b := range gpu.EncodeXFB(g.FB.FrameBuffer()) {
+				g.bus.Write8(addr+uint32(i), b)
+			}
+		}
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/ai"
+	"github.com/Duc-inc/espaze/internal/systems/gamecube/gpu"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/pi"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/wgp"
 	"github.com/Duc-inc/espaze/internal/systems/powerpc"
@@ -205,6 +206,32 @@ func TestVBlankAutoFlushesWithoutAnExplicitCall(t *testing.T) {
 	}
 
 	assertWhiteTriangleRendered(t, g)
+}
+
+// TestFlushGPWritesRealXFBBytesToVIsFramebufferAddress closes the last
+// loop: a real CPU-driven draw, flushed, should leave the exact bytes
+// a real VI video encoder would read at the exact address a real game
+// configured via TFBL - not just an internal Framebuffer object no
+// memory-mapped consumer could ever see.
+func TestFlushGPWritesRealXFBBytesToVIsFramebufferAddress(t *testing.T) {
+	g := New(nil)
+	g.VI.Write32(0x02, 1)       // DCR: ENB=1
+	const xfbAddr = 0x00180000  // arbitrary valid MEM1 address
+	g.VI.Write32(0x1C, xfbAddr) // TFBL
+
+	instrCount := loadWGPCopyProgram(g, triangleDrawStream(), 0x2000, 0x4000)
+	for i := 0; i < instrCount; i++ {
+		g.Step()
+	}
+	g.FlushGP()
+
+	want := gpu.EncodeXFB(g.FB.FrameBuffer())
+	for i := 0; i < 64; i++ { // spot-check the first 64 bytes, not the whole 614400-byte frame
+		got := g.bus.Read8(xfbAddr + uint32(i))
+		if got != want[i] {
+			t.Fatalf("MEM1[xfbAddr+%d] = %#02x, want %#02x (EncodeXFB's own output)", i, got, want[i])
+		}
+	}
 }
 
 // linesPerFrameForTest mirrors vi's own linesPerFrame (unexported,
