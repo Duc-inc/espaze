@@ -118,13 +118,18 @@ func (v *VI) writeDI(i int, val uint32) {
 // raster position - not a claim about exact per-line timing.
 const linesPerFrame = 525
 
-// Step advances the raster position by one line and reports whether
-// any enabled display interrupt (real hardware's VBlank notification
-// mechanism) just fired.
-func (v *VI) Step() (interrupted bool) {
+// Step advances the raster position by one line and reports both
+// whether any enabled display interrupt just fired (interrupted - a
+// game can point DI0-3 at any line, not necessarily frame start) and
+// whether the raster position just wrapped back to the top of a new
+// frame (vblank) - real hardware's actual vertical blanking event,
+// independent of whether a game has any display interrupt configured
+// at all.
+func (v *VI) Step() (interrupted, vblank bool) {
 	v.vpos++
 	if v.vpos >= linesPerFrame {
 		v.vpos = 1
+		vblank = true
 	}
 	for i := range v.interrupts {
 		d := &v.interrupts[i]
@@ -133,5 +138,5 @@ func (v *VI) Step() (interrupted bool) {
 			interrupted = true
 		}
 	}
-	return interrupted
+	return interrupted, vblank
 }

@@ -27,7 +27,7 @@ func TestStepFiresEnabledDisplayInterruptAtItsLine(t *testing.T) {
 
 	var fired bool
 	for i := 0; i < 10; i++ {
-		fired = v.Step()
+		fired, _ = v.Step()
 	}
 	if !fired {
 		t.Fatal("expected the interrupt to fire at line 10")
@@ -42,7 +42,7 @@ func TestStepDoesNotFireDisabledInterrupt(t *testing.T) {
 	v.Write32(regDI0, 10) // ENB bit clear
 
 	for i := 0; i < 10; i++ {
-		if v.Step() {
+		if interrupted, _ := v.Step(); interrupted {
 			t.Fatal("expected no interrupt while disabled")
 		}
 	}
@@ -70,5 +70,21 @@ func TestStepWrapsRasterPositionAtFrameEnd(t *testing.T) {
 	}
 	if v.vpos != 1 {
 		t.Fatalf("vpos = %d, want wrapped to 1", v.vpos)
+	}
+}
+
+func TestStepReportsVBlankOnlyAtFrameWrap(t *testing.T) {
+	v := New()
+	var sawVBlank bool
+	for i := 0; i < linesPerFrame-1; i++ {
+		if _, vblank := v.Step(); vblank {
+			sawVBlank = true
+		}
+	}
+	if sawVBlank {
+		t.Fatal("expected no vblank before the raster position wraps")
+	}
+	if _, vblank := v.Step(); !vblank {
+		t.Fatal("expected vblank on the Step that wraps vpos back to 1")
 	}
 }

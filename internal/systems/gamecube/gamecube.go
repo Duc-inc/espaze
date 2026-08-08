@@ -67,9 +67,10 @@ type GameCube struct {
 	// completed 32-byte bursts every Step, mirroring the real GP FIFO's
 	// own memory continuously filling; FlushGP is what actually feeds
 	// the accumulated bytes to CP and rasterizes whatever triangles that
-	// produces, matching real GX_Flush/GX_DrawDone's role - real games
-	// decide when to flush, so this project doesn't do it implicitly
-	// inside Step.
+	// produces, matching real GX_Flush/GX_DrawDone's role. Step calls it
+	// automatically at vblank (this project's own scheduling choice, not
+	// a hardware fact - see Step's doc comment); call FlushGP directly
+	// for finer control.
 	WGP *wgp.WGP
 	CP  *gpu.CommandProcessor
 	FB  *gpu.Framebuffer
@@ -140,7 +141,7 @@ func (g *GameCube) Reset() {
 // gpPending - see FlushGP for when they actually reach CP.
 func (g *GameCube) Step() int {
 	cycles := g.proc.Step()
-	g.VI.Step()
+	_, vblank := g.VI.Step()
 	g.AI.Step()
 
 	g.PI.SetCause(pi.BitVI, g.VI.AnyInterruptActive())
@@ -157,6 +158,19 @@ func (g *GameCube) Step() int {
 	for _, burst := range g.WGP.DrainBursts() {
 		g.gpPending = append(g.gpPending, burst...)
 	}
+
+	// Auto-flushing at vblank is this project's own choice, not a real
+	// hardware behavior - real GX code calls GX_Flush/GX_DrawDone on its
+	// own schedule, not because VI wrapped a frame. It's a reasonable
+	// stand-in given most games do finish a frame's drawing and swap
+	// around vblank anyway, and it means a command list left pending at
+	// the end of a real Step loop still eventually reaches the screen. A
+	// caller that wants exact control can still call FlushGP directly at
+	// any other point; doing so here just drains whatever's pending
+	// early, it's not harmful to call twice.
+	if vblank {
+		g.FlushGP()
+	}
 	return cycles
 }
 
@@ -167,7 +181,9 @@ func (g *GameCube) Step() int {
 // 32-byte multiple before relying on it having reached CP, exactly
 // because of the WGP's own gathering behavior - see wgp's doc
 // comment), and for the Pixel Engine that would otherwise consume
-// finished primitives as CP produces them.
+// finished primitives as CP produces them. Step already calls this
+// automatically at vblank; call it directly for finer control (e.g. to
+// see a partial draw before a frame ends).
 func (g *GameCube) FlushGP() {
 	g.CP.Execute(g.gpPending)
 	g.gpPending = nil

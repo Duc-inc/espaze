@@ -101,21 +101,11 @@ func TestDITransferCompleteRaisesRealExternalInterrupt(t *testing.T) {
 	}
 }
 
-// TestEndToEndCPUDrivenDrawRendersATriangle is this project's proof
-// that the whole chain actually works, not just each piece in
-// isolation: a real hand-assembled PowerPC program (lbz/stb pairs,
-// real load/store opcodes) copies a real GX command stream byte by
-// byte to wgp.Base - the real Write Gather Pipe address - exactly the
-// way real game code would. No test helper pokes CP/XF state directly;
-// everything happens through g.Step() executing real instructions and
-// g.FlushGP() draining the real WGP -> CP -> Framebuffer pipeline.
-func TestEndToEndCPUDrivenDrawRendersATriangle(t *testing.T) {
-	g := New(nil)
-
-	// New() already sets up an identity position matrix and a no-op
-	// orthographic projection/viewport (gpu.New's own doc comment), so
-	// a vertex's X/Y pass straight through to screen pixels - no XF/CP
-	// register setup needed for this test.
+// triangleDrawStream builds a real GX DRAW_TRIANGLES command list for
+// one white triangle in the default vertex format, padded to the
+// WGP's 32-byte burst size the way real GX code (GX_Flush) always
+// does before relying on the WGP having forwarded everything.
+func triangleDrawStream() []byte {
 	vertex := func(x, y, z int16) []byte {
 		return []byte{
 			byte(x >> 8), byte(x), byte(y >> 8), byte(y), byte(z >> 8), byte(z),
@@ -129,16 +119,21 @@ func TestEndToEndCPUDrivenDrawRendersATriangle(t *testing.T) {
 	stream = append(stream, vertex(50, 50, 0)...)
 	stream = append(stream, vertex(590, 50, 0)...)
 	stream = append(stream, vertex(320, 430, 0)...)
-	for len(stream)%wgp.Size != 0 { // real GX code pads to the WGP's 32-byte burst size
+	for len(stream)%wgp.Size != 0 {
 		stream = append(stream, 0x00) // cmdNop
 	}
+	return stream
+}
 
-	const srcAddr = 0x2000
+// loadWGPCopyProgram places stream in MEM1 at srcAddr and a real
+// hand-assembled PowerPC program at progAddr that copies it byte by
+// byte to wgp.Base (lbz r6,i(r3) ; stb r6,0(r4) per byte - real load/
+// store opcodes, no loop needed since the length is known at build
+// time), then seeds r3/r4/PC to run it. Returns the instruction count
+// so the caller knows how many Steps the copy itself takes.
+func loadWGPCopyProgram(g *GameCube, stream []byte, srcAddr, progAddr uint32) int {
 	g.LoadAt(srcAddr, stream)
 
-	// lbz r6,i(r3) ; stb r6,0(r4) for every byte - r3 holds srcAddr,
-	// r4 holds wgp.Base, both set below via SetGPR (this project's own
-	// stand-in for what IPL/OS startup code would otherwise arrange).
 	var progBytes []byte
 	emit := func(instr uint32) {
 		progBytes = append(progBytes, byte(instr>>24), byte(instr>>16), byte(instr>>8), byte(instr))
@@ -147,19 +142,16 @@ func TestEndToEndCPUDrivenDrawRendersATriangle(t *testing.T) {
 		emit(uint32(34)<<26 | 6<<21 | 3<<16 | uint32(uint16(i))) // lbz r6,i(r3)
 		emit(uint32(38)<<26 | 6<<21 | 4<<16 | 0)                 // stb r6,0(r4)
 	}
-	const progAddr = 0x4000
 	g.LoadAt(progAddr, progBytes)
 
 	g.proc.SetGPR(3, srcAddr)
 	g.proc.SetGPR(4, wgp.Base)
 	g.proc.SetPC(progAddr)
+	return len(progBytes) / 4
+}
 
-	instrCount := len(progBytes) / 4
-	for i := 0; i < instrCount; i++ {
-		g.Step()
-	}
-	g.FlushGP()
-
+func assertWhiteTriangleRendered(t *testing.T, g *GameCube) {
+	t.Helper()
 	fb := g.FB.FrameBuffer()
 	// (320,200) sits inside the triangle (50,50)-(590,50)-(320,430).
 	idx := (200*fb.Width + 320) * 4
@@ -174,6 +166,50 @@ func TestEndToEndCPUDrivenDrawRendersATriangle(t *testing.T) {
 		t.Fatalf("pixel at (10,10) = %d, want 0 (background, outside the triangle)", fb.Pixels[outIdx])
 	}
 }
+
+// TestEndToEndCPUDrivenDrawRendersATriangle is this project's proof
+// that the whole chain actually works, not just each piece in
+// isolation: a real hand-assembled PowerPC program copies a real GX
+// command stream byte by byte to wgp.Base - the real Write Gather Pipe
+// address - exactly the way real game code would. No test helper
+// pokes CP/XF state directly; everything happens through g.Step()
+// executing real instructions and an explicit g.FlushGP() draining the
+// real WGP -> CP -> Framebuffer pipeline.
+func TestEndToEndCPUDrivenDrawRendersATriangle(t *testing.T) {
+	g := New(nil)
+	instrCount := loadWGPCopyProgram(g, triangleDrawStream(), 0x2000, 0x4000)
+
+	for i := 0; i < instrCount; i++ {
+		g.Step()
+	}
+	g.FlushGP()
+
+	assertWhiteTriangleRendered(t, g)
+}
+
+// TestVBlankAutoFlushesWithoutAnExplicitCall proves Step's automatic
+// FlushGP-at-vblank actually fires on its own: same real CPU-driven
+// draw as above, but this test never calls FlushGP - it just keeps
+// stepping (past the end of the loaded program, into zeroed/undefined-
+// instruction memory that's a harmless 2-cycle no-op) until VI's
+// raster position wraps into a new frame on its own.
+func TestVBlankAutoFlushesWithoutAnExplicitCall(t *testing.T) {
+	g := New(nil)
+	instrCount := loadWGPCopyProgram(g, triangleDrawStream(), 0x2000, 0x4000)
+
+	for i := 0; i < instrCount; i++ {
+		g.Step()
+	}
+	for i := instrCount; i < linesPerFrameForTest; i++ {
+		g.Step()
+	}
+
+	assertWhiteTriangleRendered(t, g)
+}
+
+// linesPerFrameForTest mirrors vi's own linesPerFrame (unexported,
+// package-local) - the raster line count a Step-per-line VI wraps at.
+const linesPerFrameForTest = 525
 
 func TestResetClearsState(t *testing.T) {
 	g := New(nil)
