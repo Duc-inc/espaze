@@ -201,3 +201,37 @@ func TestBootRunsRealApploaderCodeThroughGameCubesOwnCPU(t *testing.T) {
 		t.Fatalf("r7 after executing the booted apploader code = %d, want 77", got)
 	}
 }
+
+// TestLoadDOLExecutesRealCodeAtItsEntryPoint proves LoadDOL's BAT
+// translation is actually consistent between where it writes and
+// where the CPU fetches from: a real DOL section loaded at an
+// effective (cached-view) address runs correctly once PC (also an
+// effective address) starts fetching there.
+func TestLoadDOLExecutesRealCodeAtItsEntryPoint(t *testing.T) {
+	const loadAddr = 0x80003100 // an effective, cached-view MEM1 address
+	img := make([]byte, 0x200)
+	putU32 := func(b []byte, off int, v uint32) {
+		b[off] = byte(v >> 24)
+		b[off+1] = byte(v >> 16)
+		b[off+2] = byte(v >> 8)
+		b[off+3] = byte(v)
+	}
+	// One text section: file offset 0x100, load address loadAddr, size 4.
+	putU32(img, 0x00, 0x100)    // dolOffsetsBase
+	putU32(img, 0x48, loadAddr) // dolAddrsBase
+	putU32(img, 0x90, 4)        // dolSizesBase
+	putU32(img, 0xE0, loadAddr) // dolEntryOffset
+	// addi r8,r0,55 - a recognizable instruction as the DOL's "code".
+	putU32(img, 0x100, uint32(14)<<26|8<<21|0<<16|55)
+
+	g := New(nil)
+	g.LoadDOL(img)
+
+	if g.PC() != loadAddr {
+		t.Fatalf("PC = %#x, want DOL entry %#x", g.PC(), uint32(loadAddr))
+	}
+	g.Step()
+	if got := g.proc.GPR(8); got != 55 {
+		t.Fatalf("r8 after executing the loaded DOL code = %d, want 55", got)
+	}
+}

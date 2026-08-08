@@ -212,6 +212,40 @@ func (g *GameCube) FlushGP() {
 	}
 }
 
+// mem1CachedBase/mem1Size mirror ipl's own private constants (see
+// apploader.go) - the same cached-view-of-MEM1 BAT mapping convention
+// real GameCube DOL/apploader load addresses assume.
+const (
+	mem1CachedBase = 0x80000000
+	mem1Size       = 24 * 1024 * 1024
+)
+
+// dolWriter translates a DOL section's effective (cached-view) load
+// address to a physical MEM1 offset before writing, so LoadDOL's
+// writes land at the same physical bytes the CPU's own BAT-translated
+// instruction fetches will read from.
+type dolWriter struct{ bus *memory.Bus }
+
+func (w dolWriter) Write8(addr uint32, v byte) { w.bus.Write8(addr-mem1CachedBase, v) }
+
+// LoadDOL parses and loads a real DOL executable (disc.ParseDOL/
+// LoadInto - GameCube's standard, publicly-documented native
+// executable format, not a disc image) into MEM1 at each section's
+// declared load address, configures the same cached-view BAT mapping
+// Boot does, and sets PC to the DOL's entry point. This is the same
+// shortcut real development tools use to run homebrew directly,
+// skipping the disc apploader boot path (Boot) entirely - there's no
+// real apploader binary available to this project either way (that's
+// Nintendo's copyrighted code, not something this project can ship or
+// interpret), so for anything beyond BootViaApploader's own minimal
+// header/entry handling, a caller needs an already-built DOL.
+func (g *GameCube) LoadDOL(image []byte) {
+	dol := disc.ParseDOL(image)
+	g.proc.SetBAT(4, mem1CachedBase, mem1Size, 0)
+	dol.LoadInto(image, dolWriter{g.bus})
+	g.proc.SetPC(dol.Entry)
+}
+
 // LoadAt copies data directly into MEM1 at the given physical address
 // - a stand-in for the disc-loading process real hardware's IPL (boot
 // ROM) performs.
