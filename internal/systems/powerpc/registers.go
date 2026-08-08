@@ -29,7 +29,11 @@ package powerpc
 // general-purpose registers, the link register (subroutine return
 // address), count register (loop counter / branch target), condition
 // register (8 4-bit fields, CR0 set by "." instruction variants),
-// XER (carry/overflow/summary), and the program counter.
+// XER (carry/overflow/summary), the program counter, and the 32
+// 64-bit floating-point registers (FPR) real PowerPC code - including
+// virtually all GameCube 3D math - relies on heavily; single-precision
+// values are stored converted to double, matching real hardware's own
+// internal representation.
 type registers struct {
 	GPR [32]uint32
 	LR  uint32
@@ -37,6 +41,9 @@ type registers struct {
 	CR  uint32
 	XER uint32
 	PC  uint32
+
+	FPR   [32]float64
+	FPSCR uint32
 }
 
 // XER bit positions.

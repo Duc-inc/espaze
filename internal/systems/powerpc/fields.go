@@ -37,3 +37,12 @@ func fieldBO(instr uint32) uint32 { return (instr >> 21) & 0x1F }
 func fieldBI(instr uint32) uint32 { return (instr >> 16) & 0x1F }
 func fieldAA(instr uint32) bool   { return instr&0x02 != 0 }
 func fieldLK(instr uint32) bool   { return instr&0x01 != 0 }
+
+// fieldFRC and fieldAFormXO are specific to A-form floating-point
+// instructions (fadd/fsub/fmul/fdiv and similar): frD/frA/frB sit at
+// the same bit positions fieldRD/fieldRA/fieldRB already extract, but
+// A-form adds a third source register frC (bits 21-25) and its
+// extended opcode is only 5 bits (bits 26-30), not the 10-bit field
+// most other extended opcodes use.
+func fieldFRC(instr uint32) uint32     { return (instr >> 6) & 0x1F }
+func fieldAFormXO(instr uint32) uint32 { return (instr >> 1) & 0x1F }

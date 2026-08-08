@@ -1,0 +1,74 @@
+package powerpc
+
+import "testing"
+
+func TestFloatLoadStoreDoubleRoundTrip(t *testing.T) {
+	// stfd f1,0x100(r0) requires f1 preloaded via direct register poke
+	// (no float-immediate-load instruction exists on real hardware
+	// either - constants are always loaded from memory).
+	stfd := uint32(54)<<26 | 1<<21 | 0<<16 | 0x100
+	lfd := uint32(50)<<26 | 2<<21 | 0<<16 | 0x100
+	c, _ := newTestCPU([]uint32{stfd, lfd})
+	c.regs.FPR[1] = 3.5
+
+	c.Step()
+	c.Step()
+	if c.regs.FPR[2] != 3.5 {
+		t.Fatalf("FPR2 = %v, want 3.5", c.regs.FPR[2])
+	}
+}
+
+func TestFloatAdd(t *testing.T) {
+	// fadd f3,f1,f2 (ext63A=21)
+	fadd := uint32(63)<<26 | 3<<21 | 1<<16 | 2<<11 | 21<<1
+	c, _ := newTestCPU([]uint32{fadd})
+	c.regs.FPR[1] = 1.5
+	c.regs.FPR[2] = 2.25
+
+	c.Step()
+	if c.regs.FPR[3] != 3.75 {
+		t.Fatalf("FPR3 = %v, want 3.75", c.regs.FPR[3])
+	}
+}
+
+func TestFloatMulUsesFRC(t *testing.T) {
+	// fmul f3,f1,f2 (ext63A=25): frA=1, frC=2 (frB field unused/zero)
+	fmul := uint32(63)<<26 | 3<<21 | 1<<16 | 0<<11 | 2<<6 | 25<<1
+	c, _ := newTestCPU([]uint32{fmul})
+	c.regs.FPR[1] = 4.0
+	c.regs.FPR[2] = 2.5
+
+	c.Step()
+	if c.regs.FPR[3] != 10.0 {
+		t.Fatalf("FPR3 = %v, want 10.0", c.regs.FPR[3])
+	}
+}
+
+func TestFloatNegAndAbs(t *testing.T) {
+	fneg := uint32(63)<<26 | 1<<21 | 0<<16 | 2<<11 | 40<<1
+	fabs := uint32(63)<<26 | 3<<21 | 0<<16 | 1<<11 | 264<<1
+	c, _ := newTestCPU([]uint32{fneg, fabs})
+	c.regs.FPR[2] = 5.0
+
+	c.Step()
+	if c.regs.FPR[1] != -5.0 {
+		t.Fatalf("FPR1 after fneg = %v, want -5.0", c.regs.FPR[1])
+	}
+	c.Step()
+	if c.regs.FPR[3] != 5.0 {
+		t.Fatalf("FPR3 after fabs = %v, want 5.0", c.regs.FPR[3])
+	}
+}
+
+func TestFloatCompareSetsConditionRegister(t *testing.T) {
+	// fcmpu cr0,f1,f2 (ext63=0)
+	fcmpu := uint32(63)<<26 | 0<<21 | 1<<16 | 2<<11
+	c, _ := newTestCPU([]uint32{fcmpu})
+	c.regs.FPR[1] = 1.0
+	c.regs.FPR[2] = 2.0
+
+	c.Step()
+	if c.regs.CR>>28 != 0x8 { // "less than"
+		t.Fatalf("CR field0 = %#x, want 0x8 (less than)", c.regs.CR>>28)
+	}
+}

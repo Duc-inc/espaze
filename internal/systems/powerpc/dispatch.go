@@ -12,9 +12,20 @@ var primaryTable = map[uint32]func(c *CPU, instr uint32) int{}
 var ext31Table = map[uint32]func(c *CPU, instr uint32) int{}
 var ext19Table = map[uint32]func(c *CPU, instr uint32) int{}
 
+// ext63Table/ext63ATable dispatch primary opcode 63's (double-
+// precision floating point) two different extended-opcode widths:
+// X-form instructions (fmr/fneg/fabs/fcmpu) use the usual 10-bit
+// field, but A-form arithmetic (fadd/fsub/fmul/fdiv) only has 5 bits
+// of opcode, checked first since the two schemes would otherwise
+// collide on some values.
+var ext63Table = map[uint32]func(c *CPU, instr uint32) int{}
+var ext63ATable = map[uint32]func(c *CPU, instr uint32) int{}
+
 func setPrimary(op uint32, fn func(c *CPU, instr uint32) int)  { primaryTable[op] = fn }
 func setExt31(extOp uint32, fn func(c *CPU, instr uint32) int) { ext31Table[extOp] = fn }
 func setExt19(extOp uint32, fn func(c *CPU, instr uint32) int) { ext19Table[extOp] = fn }
+func setExt63(extOp uint32, fn func(c *CPU, instr uint32) int) { ext63Table[extOp] = fn }
+func setExt63A(xo uint32, fn func(c *CPU, instr uint32) int)   { ext63ATable[xo] = fn }
 
 func init() {
 	setPrimary(31, func(c *CPU, instr uint32) int {
@@ -25,6 +36,15 @@ func init() {
 	})
 	setPrimary(19, func(c *CPU, instr uint32) int {
 		if fn, ok := ext19Table[fieldExtOp(instr)]; ok {
+			return fn(c, instr)
+		}
+		return 2
+	})
+	setPrimary(63, func(c *CPU, instr uint32) int {
+		if fn, ok := ext63ATable[fieldAFormXO(instr)]; ok {
+			return fn(c, instr)
+		}
+		if fn, ok := ext63Table[fieldExtOp(instr)]; ok {
 			return fn(c, instr)
 		}
 		return 2
