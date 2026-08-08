@@ -33,6 +33,14 @@
 // simplified layout rather than real hardware's configurable one.
 // SetTexture/SetAmbient/SetLight remain available too, for callers
 // that don't go through a command stream.
+//
+// indexed.go adds a second vertex path alongside the direct layout
+// above: a reserved CP register (cpVertexMode) switches a draw call to
+// reading 16-bit position/normal/UV array indices instead of full
+// vertex data, resolved against array base/stride CP registers and
+// fetched through the same MemoryReader texture binding uses - closer
+// to how real games actually supply geometry (shared vertex arrays,
+// referenced by index) than always re-sending full vertex data.
 package gpu
 
 import (
@@ -82,6 +90,13 @@ type Vertex struct {
 
 const vertexBytes = 3*2 + 3*2 + 2*2 + 4
 
+// MaxTexStages is how many simultaneous texture stages this project
+// supports - matching real hardware's own texture map count (GX_MAX_
+// TEXMAP-family limit); each is independently bindable and combines
+// into the output color in sequence (bind.go, render.go), the same
+// chaining model real TEV stages use.
+const MaxTexStages = 8
+
 // MemoryReader lets the Command Processor fetch texture data from
 // main GameCube memory once BP registers point a texture at it - the
 // same role real hardware's TMEM-loading hardware plays. Without one
@@ -103,9 +118,11 @@ type CommandProcessor struct {
 	ambient xf.Ambient
 	lights  [xf.MaxLights]xf.Light
 
-	boundTexture *texture.Texture
-	memReader    MemoryReader
-	pendingTex   pendingTexture
+	boundTextures [MaxTexStages]*texture.Texture
+	memReader     MemoryReader
+	pendingTex    [MaxTexStages]pendingTexture
+	tevOps        [MaxTexStages]TEVOp
+	activeTexSlot int
 
 	pendingTriangles []Triangle
 }
@@ -135,19 +152,27 @@ func (cp *CommandProcessor) SetLight(index int, l xf.Light) {
 	cp.lights[index] = l
 }
 
-// Triangle is one shaded triangle ready for rasterization. Texture is
-// nil when no texture was bound at draw time, in which case the
-// rasterizer falls back to pure Gouraud (vertex-color-only) shading.
+// Triangle is one shaded triangle ready for rasterization. Textures
+// holds up to MaxTexStages bound textures (nil slots are unbound); the
+// rasterizer (render.go) samples each bound slot in order and
+// combines it into the running color via the matching TEVOps entry,
+// starting from the lit vertex color - falling back to pure Gouraud
+// shading when every slot is nil.
 type Triangle struct {
 	V0, V1, V2 Vertex
-	Texture    *texture.Texture
+	Textures   [MaxTexStages]*texture.Texture
+	TEVOps     [MaxTexStages]TEVOp
 }
 
-// SetTexture sets the texture applied to every triangle emitted after
-// this call - a stand-in for real hardware's BP-register-driven TMEM
-// binding, which isn't decoded from the command stream yet.
-func (cp *CommandProcessor) SetTexture(t *texture.Texture) {
-	cp.boundTexture = t
+// SetTexture sets the texture bound to the given stage - a stand-in
+// for real hardware's BP-register-driven TMEM binding, which isn't
+// decoded from the command stream yet. An out-of-range slot is
+// ignored.
+func (cp *CommandProcessor) SetTexture(slot int, t *texture.Texture) {
+	if slot < 0 || slot >= MaxTexStages {
+		return
+	}
+	cp.boundTextures[slot] = t
 }
 
 // New returns a CommandProcessor with every register zeroed and the
@@ -169,11 +194,13 @@ func New() *CommandProcessor {
 		Type:   xf.ProjectionOrthographic,
 	}
 
-	return &CommandProcessor{
+	cp := &CommandProcessor{
 		xfMemory:    mem,
 		xfRegisters: regs,
 		ambient:     xf.Ambient{Color: xf.LightColor{R: 1, G: 1, B: 1}},
 	}
+	cp.tevOps[0] = TEVModulate // matches this project's pre-multi-texture default
+	return cp
 }
 
 // DrainTriangles returns and clears every triangle decoded since the

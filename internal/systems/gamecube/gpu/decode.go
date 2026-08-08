@@ -2,11 +2,22 @@ package gpu
 
 import "github.com/Duc-inc/espaze/internal/systems/gamecube/xf"
 
+// maxDisplayListDepth caps how deeply a CALL_DISPLAY_LIST command may
+// nest (a display list calling another, and so on) - a real command
+// stream has no reason to nest more than a couple of levels deep;
+// this exists purely to keep a corrupt or cyclic display list from
+// recursing forever.
+const maxDisplayListDepth = 8
+
 // Execute decodes and processes an entire GX command stream in one
 // call - real hardware processes it continuously as the CPU feeds the
 // FIFO; this project doesn't model that timing, just the resulting
 // command semantics.
 func (cp *CommandProcessor) Execute(stream []byte) {
+	cp.execute(stream, 0)
+}
+
+func (cp *CommandProcessor) execute(stream []byte, depth int) {
 	pos := 0
 	for pos < len(stream) {
 		opcode := stream[pos]
@@ -15,6 +26,16 @@ func (cp *CommandProcessor) Execute(stream []byte) {
 		switch {
 		case opcode == cmdNop:
 			// no operand
+		case opcode == cmdCallDisplayList:
+			if pos+8 > len(stream) {
+				return
+			}
+			addr := be32(stream[pos:])
+			size := be32(stream[pos+4:])
+			pos += 8
+			if cp.memReader != nil && depth < maxDisplayListDepth {
+				cp.execute(cp.memReader.ReadBytes(addr, int(size)), depth+1)
+			}
 		case opcode == cmdLoadCPReg:
 			if pos+5 > len(stream) {
 				return
@@ -47,13 +68,24 @@ func (cp *CommandProcessor) Execute(stream []byte) {
 			}
 			count := int(be16(stream[pos:]))
 			pos += 2
+			indexed := cp.isIndexed()
+			vb := vertexBytes
+			if indexed {
+				vb = indexedVertexBytes
+			}
 			verts := make([]Vertex, 0, count)
 			for i := 0; i < count; i++ {
-				if pos+vertexBytes > len(stream) {
+				if pos+vb > len(stream) {
 					return
 				}
-				verts = append(verts, cp.transformVertex(decodeVertex(stream[pos:])))
-				pos += vertexBytes
+				var v Vertex
+				if indexed {
+					v = cp.decodeIndexedVertex(stream[pos:])
+				} else {
+					v = decodeVertex(stream[pos:])
+				}
+				verts = append(verts, cp.transformVertex(v))
+				pos += vb
 			}
 			cp.emitTriangles(opcode, verts)
 		default:
@@ -100,26 +132,29 @@ func (cp *CommandProcessor) transformVertex(v Vertex) Vertex {
 // triangles, since this project's rasterizer only draws filled
 // triangles.
 func (cp *CommandProcessor) emitTriangles(opcode byte, verts []Vertex) {
-	tex := cp.boundTexture
+	texs, ops := cp.boundTextures, cp.tevOps
+	tri := func(v0, v1, v2 Vertex) Triangle {
+		return Triangle{V0: v0, V1: v1, V2: v2, Textures: texs, TEVOps: ops}
+	}
 	switch opcode {
 	case cmdDrawQuads:
 		for i := 0; i+3 < len(verts); i += 4 {
 			cp.pendingTriangles = append(cp.pendingTriangles,
-				Triangle{verts[i], verts[i+1], verts[i+2], tex},
-				Triangle{verts[i], verts[i+2], verts[i+3], tex},
+				tri(verts[i], verts[i+1], verts[i+2]),
+				tri(verts[i], verts[i+2], verts[i+3]),
 			)
 		}
 	case cmdDrawTriangles:
 		for i := 0; i+2 < len(verts); i += 3 {
-			cp.pendingTriangles = append(cp.pendingTriangles, Triangle{verts[i], verts[i+1], verts[i+2], tex})
+			cp.pendingTriangles = append(cp.pendingTriangles, tri(verts[i], verts[i+1], verts[i+2]))
 		}
 	case cmdDrawTriStrip:
 		for i := 0; i+2 < len(verts); i++ {
-			cp.pendingTriangles = append(cp.pendingTriangles, Triangle{verts[i], verts[i+1], verts[i+2], tex})
+			cp.pendingTriangles = append(cp.pendingTriangles, tri(verts[i], verts[i+1], verts[i+2]))
 		}
 	case cmdDrawTriFan:
 		for i := 1; i+1 < len(verts); i++ {
-			cp.pendingTriangles = append(cp.pendingTriangles, Triangle{verts[0], verts[i], verts[i+1], tex})
+			cp.pendingTriangles = append(cp.pendingTriangles, tri(verts[0], verts[i], verts[i+1]))
 		}
 	}
 }

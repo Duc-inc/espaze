@@ -74,10 +74,11 @@ func TestDrawTriangleWithTextureModulatesTexelByVertexColor(t *testing.T) {
 	tex := texture.New(texture.FormatRGBA8, []byte{0, 0, 255, 255}, 1, 1)
 
 	f.DrawTriangle(Triangle{
-		V0:      Vertex{X: 0, Y: 0, R: 255, G: 255, B: 255, A: 255},
-		V1:      Vertex{X: 64, Y: 0, R: 255, G: 255, B: 255, A: 255},
-		V2:      Vertex{X: 32, Y: 64, R: 255, G: 255, B: 255, A: 255},
-		Texture: tex,
+		V0:       Vertex{X: 0, Y: 0, R: 255, G: 255, B: 255, A: 255},
+		V1:       Vertex{X: 64, Y: 0, R: 255, G: 255, B: 255, A: 255},
+		V2:       Vertex{X: 32, Y: 64, R: 255, G: 255, B: 255, A: 255},
+		Textures: [MaxTexStages]*texture.Texture{tex},
+		TEVOps:   [MaxTexStages]TEVOp{TEVModulate},
 	})
 
 	fb := f.FrameBuffer()

@@ -48,12 +48,63 @@ func TestBPRegistersBindTextureFromMemory(t *testing.T) {
 	if len(tris) != 1 {
 		t.Fatalf("got %d triangles, want 1", len(tris))
 	}
-	if tris[0].Texture == nil {
+	if tris[0].Textures[0] == nil {
 		t.Fatal("expected a texture to be bound from BP register writes")
 	}
-	sampled := tris[0].Texture.Sample(0, 0)
+	sampled := tris[0].Textures[0].Sample(0, 0)
 	if sampled.R != 0 || sampled.G != 0 || sampled.B != 255 {
 		t.Fatalf("sampled = %+v, want blue (0,0,255)", sampled)
+	}
+}
+
+func TestBPTevOpSwitchesFromDefaultModulateToReplace(t *testing.T) {
+	cp := New()
+	mem := &fakeMemory{data: make([]byte, 0x200)}
+	copy(mem.data[0x100:], []byte{255, 0, 0, 255}) // one red RGBA8 texel
+	cp.SetMemoryReader(mem)
+
+	var bind []byte
+	bind = append(bind, loadBPRegBytes(bpTexAddr, 0x100)...)
+	bind = append(bind, loadBPRegBytes(bpTexFormat, uint32(texture.FormatRGBA8))...)
+	bind = append(bind, loadBPRegBytes(bpTexWidth, 1)...)
+	bind = append(bind, loadBPRegBytes(bpTexHeight, 1)...)
+	cp.Execute(bind)
+
+	draw := func() Triangle {
+		var stream []byte
+		stream = append(stream, cmdDrawTriangles, 0x00, 0x03)
+		v0 := Vertex{X: 0, Y: 0, G: 255, A: 255}
+		v1 := Vertex{X: 64, Y: 0, G: 255, A: 255}
+		v2 := Vertex{X: 32, Y: 64, G: 255, A: 255}
+		stream = append(stream, vertexBytesOf(v0)...)
+		stream = append(stream, vertexBytesOf(v1)...)
+		stream = append(stream, vertexBytesOf(v2)...)
+		cp.Execute(stream)
+		tris := cp.DrainTriangles()
+		if len(tris) != 1 {
+			t.Fatalf("got %d triangles, want 1", len(tris))
+		}
+		return tris[0]
+	}
+
+	// Default (Modulate): red texel * green vertex = black.
+	f := NewFramebuffer(64, 64)
+	f.Clear()
+	f.DrawTriangle(draw())
+	fb := f.FrameBuffer()
+	i := (20*fb.Width + 32) * 4
+	if fb.Pixels[i] != 0 || fb.Pixels[i+1] != 0 {
+		t.Fatalf("modulate pixel = (%d,%d,%d), want black (red texel * green vertex)", fb.Pixels[i], fb.Pixels[i+1], fb.Pixels[i+2])
+	}
+
+	// Switch to Replace via BP register: the texel wins outright.
+	cp.Execute(loadBPRegBytes(bpTevOp, uint32(TEVReplace)))
+	f2 := NewFramebuffer(64, 64)
+	f2.Clear()
+	f2.DrawTriangle(draw())
+	fb2 := f2.FrameBuffer()
+	if fb2.Pixels[i] != 255 || fb2.Pixels[i+1] != 0 {
+		t.Fatalf("replace pixel = (%d,%d,%d), want red (texel wins outright)", fb2.Pixels[i], fb2.Pixels[i+1], fb2.Pixels[i+2])
 	}
 }
 
@@ -76,7 +127,7 @@ func TestBPTextureBindWithoutMemoryReaderStaysNil(t *testing.T) {
 	if len(tris) != 1 {
 		t.Fatalf("got %d triangles, want 1", len(tris))
 	}
-	if tris[0].Texture != nil {
+	if tris[0].Textures[0] != nil {
 		t.Fatal("expected no texture bound without a memory reader")
 	}
 }

@@ -9,14 +9,25 @@ import (
 
 // BP register addresses this project reserves for texture binding.
 // Real hardware spreads this across several TX_SETIMAGE-family
-// registers; this project uses one address per field instead, in
-// whatever order a real command stream happens to write them, and
-// rebuilds the bound texture after every one of the four is set.
+// registers per texture stage; this project uses one address per
+// field instead, applied to whichever stage bpTexSlot last selected
+// (defaulting to stage 0, so a command stream that never touches
+// bpTexSlot behaves exactly as this project's original single-texture
+// binding did), and rebuilds that stage's bound texture after every
+// one of the four fields is set.
 const (
+	bpTexSlot   = 0x0F // selects which of MaxTexStages the fields below target
 	bpTexAddr   = 0x10 // base byte address in main memory
 	bpTexFormat = 0x11 // low byte: texture.Format value
 	bpTexWidth  = 0x12
 	bpTexHeight = 0x13
+
+	// bpTevOp sets the TEV operation for the currently selected stage
+	// (bpTexSlot) - each bound texture stage combines into the running
+	// output color via its own op, chained in stage order (render.go),
+	// the same chaining model real hardware's TEV stages use. Low
+	// byte: a TEVOp value.
+	bpTevOp = 0x14
 )
 
 // pendingTexture accumulates the four BP writes a texture bind needs
@@ -30,32 +41,39 @@ type pendingTexture struct {
 // in cp.bpRegs, updating any binding state that register address
 // affects.
 func (cp *CommandProcessor) applyBPRegisterWrite(reg byte) {
+	slot := cp.activeTexSlot
 	switch reg {
+	case bpTexSlot:
+		cp.activeTexSlot = int(cp.bpRegs[reg]) % MaxTexStages
+		return
 	case bpTexAddr:
-		cp.pendingTex.addr = cp.bpRegs[reg]
+		cp.pendingTex[slot].addr = cp.bpRegs[reg]
 	case bpTexFormat:
-		cp.pendingTex.format = texture.Format(byte(cp.bpRegs[reg]))
+		cp.pendingTex[slot].format = texture.Format(byte(cp.bpRegs[reg]))
 	case bpTexWidth:
-		cp.pendingTex.width = cp.bpRegs[reg]
+		cp.pendingTex[slot].width = cp.bpRegs[reg]
 	case bpTexHeight:
-		cp.pendingTex.height = cp.bpRegs[reg]
+		cp.pendingTex[slot].height = cp.bpRegs[reg]
+	case bpTevOp:
+		cp.tevOps[slot] = TEVOp(byte(cp.bpRegs[reg]))
+		return
 	default:
 		return
 	}
-	cp.rebindTexture()
+	cp.rebindTexture(slot)
 }
 
-// rebindTexture decodes and binds a texture from the current pending
-// state, if there's a memory reader to fetch bytes from and the
-// texture has a real size.
-func (cp *CommandProcessor) rebindTexture() {
-	p := cp.pendingTex
+// rebindTexture decodes and binds a texture for the given stage from
+// its current pending state, if there's a memory reader to fetch
+// bytes from and the texture has a real size.
+func (cp *CommandProcessor) rebindTexture(slot int) {
+	p := cp.pendingTex[slot]
 	if cp.memReader == nil || p.width == 0 || p.height == 0 {
 		return
 	}
 	length := int(p.width) * int(p.height) * texture.BytesPerTexel(p.format)
 	raw := cp.memReader.ReadBytes(p.addr, length)
-	cp.boundTexture = texture.New(p.format, raw, int(p.width), int(p.height))
+	cp.boundTextures[slot] = texture.New(p.format, raw, int(p.width), int(p.height))
 }
 
 // XF pseudo-register addresses this project reserves within the same
