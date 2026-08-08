@@ -3,12 +3,12 @@ package powerpc
 import "math"
 
 func (c *CPU) read64(addr uint32) uint64 {
-	return uint64(c.bus.Read32(addr))<<32 | uint64(c.bus.Read32(addr+4))
+	return uint64(c.read32(addr))<<32 | uint64(c.read32(addr+4))
 }
 
 func (c *CPU) write64(addr uint32, v uint64) {
-	c.bus.Write32(addr, uint32(v>>32))
-	c.bus.Write32(addr+4, uint32(v))
+	c.write32(addr, uint32(v>>32))
+	c.write32(addr+4, uint32(v))
 }
 
 func init() {
@@ -23,13 +23,13 @@ func init() {
 		return 4
 	})
 	setPrimary(48, func(c *CPU, instr uint32) int { // lfs
-		bits := c.bus.Read32(c.effectiveAddr(instr))
+		bits := c.read32(c.effectiveAddr(instr))
 		c.regs.FPR[fieldRD(instr)] = float64(math.Float32frombits(bits))
 		return 4
 	})
 	setPrimary(49, func(c *CPU, instr uint32) int { // lfsu
 		addr := c.effectiveAddr(instr)
-		c.regs.FPR[fieldRD(instr)] = float64(math.Float32frombits(c.bus.Read32(addr)))
+		c.regs.FPR[fieldRD(instr)] = float64(math.Float32frombits(c.read32(addr)))
 		c.regs.GPR[fieldRA(instr)] = addr
 		return 4
 	})
@@ -46,12 +46,12 @@ func init() {
 	})
 	setPrimary(52, func(c *CPU, instr uint32) int { // stfs
 		bits := math.Float32bits(float32(c.regs.FPR[fieldRD(instr)]))
-		c.bus.Write32(c.effectiveAddr(instr), bits)
+		c.write32(c.effectiveAddr(instr), bits)
 		return 4
 	})
 	setPrimary(53, func(c *CPU, instr uint32) int { // stfsu
 		addr := c.effectiveAddr(instr)
-		c.bus.Write32(addr, math.Float32bits(float32(c.regs.FPR[fieldRD(instr)])))
+		c.write32(addr, math.Float32bits(float32(c.regs.FPR[fieldRD(instr)])))
 		c.regs.GPR[fieldRA(instr)] = addr
 		return 4
 	})

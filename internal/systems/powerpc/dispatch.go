@@ -21,11 +21,21 @@ var ext19Table = map[uint32]func(c *CPU, instr uint32) int{}
 var ext63Table = map[uint32]func(c *CPU, instr uint32) int{}
 var ext63ATable = map[uint32]func(c *CPU, instr uint32) int{}
 
+// ext4Table/ext4ATable mirror ext63Table/ext63ATable's X-form/A-form
+// split, but for primary opcode 4 - the Gekko/Broadway-specific
+// paired-single instructions (opcodes_paired.go), which reuse the
+// same extended-opcode values as their scalar double-precision
+// equivalents under primary 63 (ps_add's xo equals fadd's, and so on).
+var ext4Table = map[uint32]func(c *CPU, instr uint32) int{}
+var ext4ATable = map[uint32]func(c *CPU, instr uint32) int{}
+
 func setPrimary(op uint32, fn func(c *CPU, instr uint32) int)  { primaryTable[op] = fn }
 func setExt31(extOp uint32, fn func(c *CPU, instr uint32) int) { ext31Table[extOp] = fn }
 func setExt19(extOp uint32, fn func(c *CPU, instr uint32) int) { ext19Table[extOp] = fn }
 func setExt63(extOp uint32, fn func(c *CPU, instr uint32) int) { ext63Table[extOp] = fn }
 func setExt63A(xo uint32, fn func(c *CPU, instr uint32) int)   { ext63ATable[xo] = fn }
+func setExt4(extOp uint32, fn func(c *CPU, instr uint32) int)  { ext4Table[extOp] = fn }
+func setExt4A(xo uint32, fn func(c *CPU, instr uint32) int)    { ext4ATable[xo] = fn }
 
 func init() {
 	setPrimary(31, func(c *CPU, instr uint32) int {
@@ -45,6 +55,15 @@ func init() {
 			return fn(c, instr)
 		}
 		if fn, ok := ext63Table[fieldExtOp(instr)]; ok {
+			return fn(c, instr)
+		}
+		return 2
+	})
+	setPrimary(4, func(c *CPU, instr uint32) int {
+		if fn, ok := ext4ATable[fieldAFormXO(instr)]; ok {
+			return fn(c, instr)
+		}
+		if fn, ok := ext4Table[fieldExtOp(instr)]; ok {
 			return fn(c, instr)
 		}
 		return 2

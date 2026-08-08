@@ -44,6 +44,21 @@ type registers struct {
 
 	FPR   [32]float64
 	FPSCR uint32
+
+	// PS1 holds the "second slot" of each FPR the Gekko/Broadway-
+	// specific paired-single extension adds (opcodes_paired.go): real
+	// hardware doesn't literally store two packed 32-bit floats inside
+	// each 64-bit FPR, it keeps this second value in a separate shadow
+	// register file, which PS1 models directly. FPR itself continues
+	// to serve as each pair's first slot ("ps0") for every paired-
+	// single instruction, matching real hardware's own reuse of the
+	// scalar FPU register file.
+	PS1 [32]float64
+
+	// bats holds the 4 instruction + 4 data Block Address Translation
+	// entries (indices 0-3 = IBAT0-3, 4-7 = DBAT0-3, matching real SPR
+	// ordering) - see mmu.go.
+	bats [8]bat
 }
 
 // XER bit positions.

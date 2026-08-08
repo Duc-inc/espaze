@@ -30,6 +30,12 @@ func (c *CPU) Reset() { c.regs = registers{} }
 // PC exposes the program counter, mainly for tests.
 func (c *CPU) PC() uint32 { return c.regs.PC }
 
+// LR exposes the link register - the return address a "blr" (branch
+// to link register) would jump to, which an HLE function call (see
+// internal/systems/gamecube/hle) uses to return control to its caller
+// without any real function body to run a real "blr" from.
+func (c *CPU) LR() uint32 { return c.regs.LR }
+
 // SetPC/SetGPR let a caller set up initial execution state - this
 // project's own stand-in for what real IPL firmware would otherwise
 // arrange before jumping into game code.
@@ -38,7 +44,7 @@ func (c *CPU) SetGPR(reg int, v uint32) { c.regs.GPR[reg&0x1F] = v }
 func (c *CPU) GPR(reg int) uint32       { return c.regs.GPR[reg&0x1F] }
 
 func (c *CPU) fetch32() uint32 {
-	v := c.bus.Read32(c.regs.PC)
+	v := c.read32(c.regs.PC)
 	c.regs.PC += 4
 	return v
 }
