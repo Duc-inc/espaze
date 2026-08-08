@@ -95,6 +95,7 @@ func (g *GameCube) Step() int {
 
 	g.PI.SetCause(pi.BitVI, g.VI.AnyInterruptActive())
 	g.PI.SetCause(pi.BitAI, g.AI.Interrupting())
+	g.PI.SetCause(pi.BitDI, g.DI.Interrupting())
 	if g.PI.Pending() {
 		g.proc.RaiseExternalInterrupt()
 	}

@@ -49,6 +49,12 @@ func New(image []byte, mem MemWriter) *DI {
 	return &DI{image: image, mem: mem}
 }
 
+// Interrupting reports whether DI's transfer-complete interrupt is
+// currently active (not yet cleared by a game writing DISR's TCINT
+// bit) - the level-triggered cause signal pi.PI's DI bit reports (see
+// gamecube.go's Step).
+func (d *DI) Interrupting() bool { return d.tcint }
+
 func (d *DI) Read32(offset uint32) uint32 {
 	switch offset {
 	case regDISR:

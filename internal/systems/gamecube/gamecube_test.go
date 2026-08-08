@@ -83,6 +83,22 @@ func TestAIPlayingGatesAudioMixerStepping(t *testing.T) {
 	}
 }
 
+func TestDITransferCompleteRaisesRealExternalInterrupt(t *testing.T) {
+	g := New(make([]byte, 0x100))
+	g.proc.SetMSR(powerpc.MSREE)
+	g.PI.Write32(0x04, 1<<pi.BitDI) // INTMR: unmask DI
+
+	g.DI.Write32(0x08, 0) // CMDBUF0: read-sector opcode 0
+	g.DI.Write32(0x18, 4) // DILENGTH
+	g.DI.Write32(0x1C, 1) // DICR: TSTART -> runs the command, sets TCINT
+
+	g.Step()
+
+	if g.proc.PC() != powerpc.ExternalInterruptVector {
+		t.Fatalf("PC after DI transfer complete = %#x, want external interrupt vector %#x", g.proc.PC(), powerpc.ExternalInterruptVector)
+	}
+}
+
 func TestResetClearsState(t *testing.T) {
 	g := New(nil)
 	g.LoadAt(0, []byte{0, 0, 0, 1})
