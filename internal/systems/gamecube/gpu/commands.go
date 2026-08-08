@@ -6,17 +6,39 @@
 // community references (e.g. YAGCD - Yet Another GameCube
 // Documentation - independent of any specific emulator's source).
 // Vertex attribute format decoding is simplified to one fixed layout
-// (position + color, no texture coordinates or normals) rather than
+// (position, normal, UV texture coordinate, and color) rather than
 // the real chip's fully configurable per-attribute format table.
 //
 // Every decoded vertex position is run through the xf package's
 // transform pipeline (position matrix -> projection -> perspective
 // divide -> viewport) before it reaches a Triangle, so LOAD_XF_REG
 // commands that upload real matrix data now actually affect where a
-// triangle ends up, not just get parsed and discarded.
+// triangle ends up, not just get parsed and discarded. The vertex
+// normal is transformed and lit (xf.Illuminate) using the ambient/
+// light state, replacing the vertex's own color with the lit result
+// before it reaches a Triangle - by default (white ambient, no
+// lights) this leaves colors unchanged, matching this project's
+// behavior before lighting existed. A texture bound (see bind.go) is
+// sampled per pixel and combined with that lit color (render.go).
+//
+// bind.go decodes LOAD_BP_REG/LOAD_XF_REG writes at a small set of
+// addresses this project reserves for binding state (texture setup,
+// ambient, light objects, active matrix index) - a real command
+// stream now drives what used to require calling SetTexture/
+// SetAmbient/SetLight/etc. directly. Real hardware's exact BP/XF
+// register numbers for this state aren't independently verified here
+// (unlike the well-documented CP/XF/BP command opcodes themselves);
+// this project reserves its own addresses for it rather than guessing
+// real ones, the same way the vertex format is this project's own
+// simplified layout rather than real hardware's configurable one.
+// SetTexture/SetAmbient/SetLight remain available too, for callers
+// that don't go through a command stream.
 package gpu
 
-import "github.com/Duc-inc/espaze/internal/systems/gamecube/xf"
+import (
+	"github.com/Duc-inc/espaze/internal/systems/gamecube/texture"
+	"github.com/Duc-inc/espaze/internal/systems/gamecube/xf"
+)
 
 // GX command opcodes (the primary byte of each command in the stream).
 const (
@@ -35,21 +57,39 @@ const (
 )
 
 // Vertex is this project's own simplified fixed vertex layout: a
-// position plus a flat RGBA color, read directly from the command
-// stream (12 bytes: 3x int16 position, 4x byte color) - real
-// hardware's vertex format is fully configurable (position can be 2D/
-// 3D, indexed or direct, with independent texture-coordinate and
-// normal attributes); this project always expects the one layout. The
+// position, a normal, a texture coordinate, and a flat RGBA color,
+// read directly from the command stream (20 bytes: 3x int16 position,
+// 3x int16 normal, 2x int16 UV, 4x byte color) - real hardware's
+// vertex format is fully configurable (position can be 2D/3D, indexed
+// or direct, with independent normal and up to 8 texture-coordinate
+// attributes); this project always expects the one layout. The
 // position starts out in model space as decoded, then gets replaced
 // with its screen-space result once Execute runs it through the xf
-// transform pipeline - by the time a Vertex reaches a Triangle, X/Y/Z
-// are screen coordinates ready for the rasterizer (render.go).
+// transform pipeline; the color similarly starts as the vertex's own
+// flat color and gets replaced by the lit result of that color once
+// Execute runs the normal through xf.Illuminate - by the time a
+// Vertex reaches a Triangle, X/Y/Z are screen coordinates and R/G/B
+// already include lighting, both ready for the rasterizer
+// (render.go). U/V are left as raw decoded pixel-space coordinates
+// into whatever texture is bound (texture.Texture.Sample), not real
+// hardware's normalized/fixed-point texture coordinates.
 type Vertex struct {
 	X, Y, Z    int16
+	NX, NY, NZ int16
+	U, V       int16
 	R, G, B, A byte
 }
 
-const vertexBytes = 3*2 + 4
+const vertexBytes = 3*2 + 3*2 + 2*2 + 4
+
+// MemoryReader lets the Command Processor fetch texture data from
+// main GameCube memory once BP registers point a texture at it - the
+// same role real hardware's TMEM-loading hardware plays. Without one
+// set (SetMemoryReader), BP-driven texture binding has no bytes to
+// read and is a no-op; SetTexture still works either way.
+type MemoryReader interface {
+	ReadBytes(addr uint32, length int) []byte
+}
 
 // CommandProcessor decodes a GX command stream into draw calls plus
 // CP/XF/BP register writes.
@@ -60,22 +100,65 @@ type CommandProcessor struct {
 	xfMemory    *xf.Memory
 	xfRegisters xf.Registers
 
+	ambient xf.Ambient
+	lights  [xf.MaxLights]xf.Light
+
+	boundTexture *texture.Texture
+	memReader    MemoryReader
+	pendingTex   pendingTexture
+
 	pendingTriangles []Triangle
 }
 
-// Triangle is one flat-shaded triangle ready for rasterization.
+// SetMemoryReader wires up how bind.go's BP-driven texture binding
+// fetches texel bytes from main memory.
+func (cp *CommandProcessor) SetMemoryReader(m MemoryReader) {
+	cp.memReader = m
+}
+
+// SetAmbient sets the constant ambient light term applied to every
+// vertex transformed after this call - a stand-in for real hardware's
+// XF-register-driven ambient color, which isn't decoded from the
+// command stream yet.
+func (cp *CommandProcessor) SetAmbient(a xf.Ambient) {
+	cp.ambient = a
+}
+
+// SetLight sets one of up to xf.MaxLights point lights - a stand-in
+// for real hardware's XF-register-driven light object uploads, which
+// aren't decoded from the command stream yet. An out-of-range index
+// is ignored.
+func (cp *CommandProcessor) SetLight(index int, l xf.Light) {
+	if index < 0 || index >= len(cp.lights) {
+		return
+	}
+	cp.lights[index] = l
+}
+
+// Triangle is one shaded triangle ready for rasterization. Texture is
+// nil when no texture was bound at draw time, in which case the
+// rasterizer falls back to pure Gouraud (vertex-color-only) shading.
 type Triangle struct {
 	V0, V1, V2 Vertex
+	Texture    *texture.Texture
+}
+
+// SetTexture sets the texture applied to every triangle emitted after
+// this call - a stand-in for real hardware's BP-register-driven TMEM
+// binding, which isn't decoded from the command stream yet.
+func (cp *CommandProcessor) SetTexture(t *texture.Texture) {
+	cp.boundTexture = t
 }
 
 // New returns a CommandProcessor with every register zeroed and the
 // XF pipeline defaulted to an identity transform (identity position
-// matrix at address 0, an orthographic no-op projection, and an
-// unscaled viewport) - so a command stream that never uploads any
-// matrices still renders vertices at their raw decoded position,
-// exactly as this project did before the xf package existed. A real
-// game overwrites this default via LOAD_XF_REG once it starts
-// drawing.
+// matrix at address 0, an orthographic no-op projection, an unscaled
+// viewport, and a white ambient term with no lights enabled) - so a
+// command stream that never uploads any matrices or lights still
+// renders vertices at their raw decoded position and color, exactly
+// as this project did before the xf package existed. A real game
+// overwrites these defaults via LOAD_XF_REG/SetAmbient/SetLight once
+// it starts drawing.
 func New() *CommandProcessor {
 	mem := xf.NewMemory()
 	mem.WritePosMatrix(0, xf.IdentityPos())
@@ -86,7 +169,11 @@ func New() *CommandProcessor {
 		Type:   xf.ProjectionOrthographic,
 	}
 
-	return &CommandProcessor{xfMemory: mem, xfRegisters: regs}
+	return &CommandProcessor{
+		xfMemory:    mem,
+		xfRegisters: regs,
+		ambient:     xf.Ambient{Color: xf.LightColor{R: 1, G: 1, B: 1}},
+	}
 }
 
 // DrainTriangles returns and clears every triangle decoded since the

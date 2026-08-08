@@ -30,6 +30,7 @@ func (cp *CommandProcessor) Execute(stream []byte) {
 			reg := be16(stream[pos:])
 			val := be32(stream[pos+2:])
 			cp.xfMemory.Write(reg, val)
+			cp.applyXFRegisterWrite(reg, val)
 			pos += 6
 		case opcode == cmdLoadBPReg:
 			if pos+4 > len(stream) {
@@ -38,6 +39,7 @@ func (cp *CommandProcessor) Execute(stream []byte) {
 			word := be32(stream[pos:])
 			reg := byte(word >> 24)
 			cp.bpRegs[reg] = word & 0x00FFFFFF
+			cp.applyBPRegisterWrite(reg)
 			pos += 4
 		case opcode >= cmdDrawQuads:
 			if pos+2 > len(stream) {
@@ -63,18 +65,31 @@ func (cp *CommandProcessor) Execute(stream []byte) {
 func decodeVertex(b []byte) Vertex {
 	return Vertex{
 		X: int16(be16(b)), Y: int16(be16(b[2:])), Z: int16(be16(b[4:])),
-		R: b[6], G: b[7], B: b[8], A: b[9],
+		NX: int16(be16(b[6:])), NY: int16(be16(b[8:])), NZ: int16(be16(b[10:])),
+		U: int16(be16(b[12:])), V: int16(be16(b[14:])),
+		R: b[16], G: b[17], B: b[18], A: b[19],
 	}
 }
 
 // transformVertex runs a decoded vertex's position through the xf
 // package's transform pipeline (position matrix -> projection ->
-// perspective divide -> viewport), replacing X/Y/Z with the result.
-// Color passes through untouched - lighting isn't modeled yet.
+// perspective divide -> viewport), replacing X/Y/Z with the result,
+// and runs its normal through the lighting pipeline (transformed
+// normal + current ambient/lights, xf.Illuminate), replacing R/G/B
+// with the lit color. With the default white ambient and no lights
+// enabled (New), Illuminate returns the vertex's own color unchanged.
 func (cp *CommandProcessor) transformVertex(v Vertex) Vertex {
 	model := xf.Vec3{X: float32(v.X), Y: float32(v.Y), Z: float32(v.Z)}
 	screen := xf.TransformPosition(model, cp.xfMemory, cp.xfRegisters)
+	viewSpace := xf.ViewSpacePosition(model, cp.xfMemory, cp.xfRegisters)
+
+	modelNormal := xf.Vec3{X: float32(v.NX), Y: float32(v.NY), Z: float32(v.NZ)}
+	normal := xf.TransformNormal(modelNormal, cp.xfMemory, cp.xfRegisters)
+	material := xf.LightColor{R: float32(v.R) / 255, G: float32(v.G) / 255, B: float32(v.B) / 255}
+	lit := xf.Illuminate(viewSpace, normal, material, cp.ambient, cp.lights[:])
+
 	v.X, v.Y, v.Z = int16(screen.X), int16(screen.Y), int16(screen.Z)
+	v.R, v.G, v.B = byte(lit.R*255), byte(lit.G*255), byte(lit.B*255)
 	return v
 }
 
@@ -85,25 +100,26 @@ func (cp *CommandProcessor) transformVertex(v Vertex) Vertex {
 // triangles, since this project's rasterizer only draws filled
 // triangles.
 func (cp *CommandProcessor) emitTriangles(opcode byte, verts []Vertex) {
+	tex := cp.boundTexture
 	switch opcode {
 	case cmdDrawQuads:
 		for i := 0; i+3 < len(verts); i += 4 {
 			cp.pendingTriangles = append(cp.pendingTriangles,
-				Triangle{verts[i], verts[i+1], verts[i+2]},
-				Triangle{verts[i], verts[i+2], verts[i+3]},
+				Triangle{verts[i], verts[i+1], verts[i+2], tex},
+				Triangle{verts[i], verts[i+2], verts[i+3], tex},
 			)
 		}
 	case cmdDrawTriangles:
 		for i := 0; i+2 < len(verts); i += 3 {
-			cp.pendingTriangles = append(cp.pendingTriangles, Triangle{verts[i], verts[i+1], verts[i+2]})
+			cp.pendingTriangles = append(cp.pendingTriangles, Triangle{verts[i], verts[i+1], verts[i+2], tex})
 		}
 	case cmdDrawTriStrip:
 		for i := 0; i+2 < len(verts); i++ {
-			cp.pendingTriangles = append(cp.pendingTriangles, Triangle{verts[i], verts[i+1], verts[i+2]})
+			cp.pendingTriangles = append(cp.pendingTriangles, Triangle{verts[i], verts[i+1], verts[i+2], tex})
 		}
 	case cmdDrawTriFan:
 		for i := 1; i+1 < len(verts); i++ {
-			cp.pendingTriangles = append(cp.pendingTriangles, Triangle{verts[0], verts[i], verts[i+1]})
+			cp.pendingTriangles = append(cp.pendingTriangles, Triangle{verts[0], verts[i], verts[i+1], tex})
 		}
 	}
 }

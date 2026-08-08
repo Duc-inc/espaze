@@ -50,6 +50,22 @@ func TestViewportApply(t *testing.T) {
 	}
 }
 
+func TestViewSpacePositionAppliesOnlyPositionMatrix(t *testing.T) {
+	mem := NewMemory()
+	writePosMatrix(mem, 0, PosMatrix{
+		{1, 0, 0, 5},
+		{0, 1, 0, 0},
+		{0, 0, 1, 0},
+	})
+	regs := NewRegisters()
+
+	got := ViewSpacePosition(Vec3{X: 1, Y: 2, Z: 3}, mem, regs)
+	want := Vec3{X: 6, Y: 2, Z: 3}
+	if got != want {
+		t.Fatalf("got %+v, want %+v", got, want)
+	}
+}
+
 func TestTransformPositionIdentityPipelineIsUnchanged(t *testing.T) {
 	mem := NewMemory()
 	writePosMatrix(mem, 0, IdentityPos())

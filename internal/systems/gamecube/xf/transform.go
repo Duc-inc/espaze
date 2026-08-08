@@ -5,12 +5,20 @@
 // consumes.
 package xf
 
+// ViewSpacePosition applies only the active position matrix - the
+// stage before projection. Lighting (Illuminate, lighting.go) operates
+// in this same camera/view space, not the final screen space
+// TransformPosition produces, so it's exposed on its own here.
+func ViewSpacePosition(pos Vec3, mem *Memory, regs Registers) Vec3 {
+	return mem.ReadPosMatrix(regs.PosMatrixIndex).MulVec3(pos)
+}
+
 // TransformPosition carries a vertex from model space to screen space
 // through every stage real XF hardware applies in order: the active
 // position matrix, the projection matrix, the perspective divide, and
 // finally the viewport mapping.
 func TransformPosition(pos Vec3, mem *Memory, regs Registers) Vec3 {
-	viewSpace := mem.ReadPosMatrix(regs.PosMatrixIndex).MulVec3(pos)
+	viewSpace := ViewSpacePosition(pos, mem, regs)
 	clip := regs.Projection.Matrix().MulVec3(viewSpace)
 	ndc := PerspectiveDivide(clip)
 	return regs.Viewport.Apply(ndc)

@@ -3,11 +3,15 @@ package gpu
 import (
 	"math"
 	"testing"
+
+	"github.com/Duc-inc/espaze/internal/systems/gamecube/xf"
 )
 
 func vertexBytesOf(v Vertex) []byte {
 	return []byte{
 		byte(v.X >> 8), byte(v.X), byte(v.Y >> 8), byte(v.Y), byte(v.Z >> 8), byte(v.Z),
+		byte(v.NX >> 8), byte(v.NX), byte(v.NY >> 8), byte(v.NY), byte(v.NZ >> 8), byte(v.NZ),
+		byte(v.U >> 8), byte(v.U), byte(v.V >> 8), byte(v.V),
 		v.R, v.G, v.B, v.A,
 	}
 }
@@ -135,5 +139,74 @@ func TestLoadXFRegUploadsMatrixThatTransformsVertices(t *testing.T) {
 	}
 	if tris[0].V1.X != 11 {
 		t.Fatalf("V1.X = %d, want 11", tris[0].V1.X)
+	}
+}
+
+func TestLightingLeavesColorUnchangedWithFullyFacingLightAndNoAmbient(t *testing.T) {
+	cp := New()
+	// Give the normal matrix its own address so it doesn't overlap
+	// the identity position matrix New() already wrote at address 0,
+	// and make it identity too.
+	cp.xfMemory.WriteNormalMatrix(100, xf.NormalMatrix{
+		{1, 0, 0},
+		{0, 1, 0},
+		{0, 0, 1},
+	})
+	cp.xfRegisters.NormalMatrixIndex = 100
+
+	cp.SetAmbient(xf.Ambient{})
+	cp.SetLight(0, xf.Light{
+		Position: xf.Vec3{X: 0, Y: 0, Z: 10},
+		Color:    xf.LightColor{R: 1, G: 1, B: 1},
+		Enabled:  true,
+	})
+
+	v := Vertex{X: 0, Y: 0, Z: 0, NZ: 1, R: 255, G: 255, B: 255, A: 255}
+	stream := []byte{cmdDrawTriangles, 0x00, 0x03}
+	stream = append(stream, vertexBytesOf(v)...)
+	stream = append(stream, vertexBytesOf(v)...)
+	stream = append(stream, vertexBytesOf(v)...)
+	cp.Execute(stream)
+
+	tris := cp.DrainTriangles()
+	if len(tris) != 1 {
+		t.Fatalf("got %d triangles, want 1", len(tris))
+	}
+	if tris[0].V0.R != 255 || tris[0].V0.G != 255 || tris[0].V0.B != 255 {
+		t.Fatalf("color = (%d,%d,%d), want (255,255,255): a light directly along the normal with white material should pass through unchanged",
+			tris[0].V0.R, tris[0].V0.G, tris[0].V0.B)
+	}
+}
+
+func TestLightingDarkensSurfaceFacingAwayFromLight(t *testing.T) {
+	cp := New()
+	cp.xfMemory.WriteNormalMatrix(100, xf.NormalMatrix{
+		{1, 0, 0},
+		{0, 1, 0},
+		{0, 0, 1},
+	})
+	cp.xfRegisters.NormalMatrixIndex = 100
+
+	cp.SetAmbient(xf.Ambient{}) // no ambient term either
+	cp.SetLight(0, xf.Light{
+		Position: xf.Vec3{X: 0, Y: 0, Z: -10}, // behind the surface
+		Color:    xf.LightColor{R: 1, G: 1, B: 1},
+		Enabled:  true,
+	})
+
+	v := Vertex{X: 0, Y: 0, Z: 0, NZ: 1, R: 255, G: 255, B: 255, A: 255}
+	stream := []byte{cmdDrawTriangles, 0x00, 0x03}
+	stream = append(stream, vertexBytesOf(v)...)
+	stream = append(stream, vertexBytesOf(v)...)
+	stream = append(stream, vertexBytesOf(v)...)
+	cp.Execute(stream)
+
+	tris := cp.DrainTriangles()
+	if len(tris) != 1 {
+		t.Fatalf("got %d triangles, want 1", len(tris))
+	}
+	if tris[0].V0.R != 0 || tris[0].V0.G != 0 || tris[0].V0.B != 0 {
+		t.Fatalf("color = (%d,%d,%d), want (0,0,0): a light behind the surface with no ambient should leave it unlit",
+			tris[0].V0.R, tris[0].V0.G, tris[0].V0.B)
 	}
 }
