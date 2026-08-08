@@ -1,5 +1,7 @@
 package gpu
 
+import "github.com/Duc-inc/espaze/internal/systems/gamecube/xf"
+
 // Execute decodes and processes an entire GX command stream in one
 // call - real hardware processes it continuously as the CPU feeds the
 // FIFO; this project doesn't model that timing, just the resulting
@@ -27,7 +29,7 @@ func (cp *CommandProcessor) Execute(stream []byte) {
 			}
 			reg := be16(stream[pos:])
 			val := be32(stream[pos+2:])
-			cp.xfRegs[reg&0xFF] = val
+			cp.xfMemory.Write(reg, val)
 			pos += 6
 		case opcode == cmdLoadBPReg:
 			if pos+4 > len(stream) {
@@ -48,7 +50,7 @@ func (cp *CommandProcessor) Execute(stream []byte) {
 				if pos+vertexBytes > len(stream) {
 					return
 				}
-				verts = append(verts, decodeVertex(stream[pos:]))
+				verts = append(verts, cp.transformVertex(decodeVertex(stream[pos:])))
 				pos += vertexBytes
 			}
 			cp.emitTriangles(opcode, verts)
@@ -63,6 +65,17 @@ func decodeVertex(b []byte) Vertex {
 		X: int16(be16(b)), Y: int16(be16(b[2:])), Z: int16(be16(b[4:])),
 		R: b[6], G: b[7], B: b[8], A: b[9],
 	}
+}
+
+// transformVertex runs a decoded vertex's position through the xf
+// package's transform pipeline (position matrix -> projection ->
+// perspective divide -> viewport), replacing X/Y/Z with the result.
+// Color passes through untouched - lighting isn't modeled yet.
+func (cp *CommandProcessor) transformVertex(v Vertex) Vertex {
+	model := xf.Vec3{X: float32(v.X), Y: float32(v.Y), Z: float32(v.Z)}
+	screen := xf.TransformPosition(model, cp.xfMemory, cp.xfRegisters)
+	v.X, v.Y, v.Z = int16(screen.X), int16(screen.Y), int16(screen.Z)
+	return v
 }
 
 // emitTriangles converts a decoded vertex list into flat triangles

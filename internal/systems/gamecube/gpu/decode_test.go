@@ -1,11 +1,24 @@
 package gpu
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func vertexBytesOf(v Vertex) []byte {
 	return []byte{
 		byte(v.X >> 8), byte(v.X), byte(v.Y >> 8), byte(v.Y), byte(v.Z >> 8), byte(v.Z),
 		v.R, v.G, v.B, v.A,
+	}
+}
+
+// loadXFRegBytes builds one LOAD_XF_REG command uploading a single
+// 32-bit word at addr.
+func loadXFRegBytes(addr uint16, word uint32) []byte {
+	return []byte{
+		cmdLoadXFReg,
+		byte(addr >> 8), byte(addr),
+		byte(word >> 24), byte(word >> 16), byte(word >> 8), byte(word),
 	}
 }
 
@@ -86,5 +99,41 @@ func TestDrawTriangleFanExpandsCorrectly(t *testing.T) {
 	}
 	if tris[0].V0 != verts[0] {
 		t.Fatal("expected every fan triangle to share vertex 0")
+	}
+}
+
+func TestLoadXFRegUploadsMatrixThatTransformsVertices(t *testing.T) {
+	cp := New()
+
+	// Overwrite the default identity position matrix (address 0) with
+	// one that translates by (10, 0, 0), one LOAD_XF_REG word at a
+	// time - exactly how a real game uploads a modelview matrix.
+	translate := []float32{
+		1, 0, 0, 10,
+		0, 1, 0, 0,
+		0, 0, 1, 0,
+	}
+	stream := []byte{}
+	for i, f := range translate {
+		stream = append(stream, loadXFRegBytes(uint16(i), math.Float32bits(f))...)
+	}
+
+	stream = append(stream, cmdDrawTriangles, 0x00, 0x03)
+	verts := []Vertex{{X: 0, Y: 0}, {X: 1, Y: 0}, {X: 0, Y: 1}}
+	for _, v := range verts {
+		stream = append(stream, vertexBytesOf(v)...)
+	}
+
+	cp.Execute(stream)
+
+	tris := cp.DrainTriangles()
+	if len(tris) != 1 {
+		t.Fatalf("got %d triangles, want 1", len(tris))
+	}
+	if tris[0].V0.X != 10 {
+		t.Fatalf("V0.X = %d, want 10 (translation from the uploaded XF matrix)", tris[0].V0.X)
+	}
+	if tris[0].V1.X != 11 {
+		t.Fatalf("V1.X = %d, want 11", tris[0].V1.X)
 	}
 }
