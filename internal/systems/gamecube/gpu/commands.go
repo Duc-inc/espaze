@@ -91,6 +91,16 @@ type Vertex struct {
 	NX, NY, NZ int16
 	U, V       int16
 	R, G, B, A byte
+
+	// HasMatrixIndexOverride/MatrixIndex carry a per-vertex position/
+	// normal matrix index (vcd.go's PosNormalMatrixIdxPresent, real
+	// hardware's per-vertex skinning mechanism), overriding
+	// xf.RegMatrixSelection0's GeometryIndex for just this vertex when
+	// present. Zero value (false/0) means "no override, use the current
+	// register selection" - the same behavior this project had before
+	// this field existed.
+	HasMatrixIndexOverride bool
+	MatrixIndex            byte
 }
 
 // MaxTexStages is how many simultaneous texture stages this project

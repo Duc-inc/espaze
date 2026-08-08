@@ -9,9 +9,9 @@
 // single "direct vs. indexed, position+normal+UV all together" stand-
 // in. This project's Vertex type still only has one color and one
 // texcoord field, so Color1 and TexCoord1-7 are read (to keep the
-// command stream in sync) but discarded; a per-vertex position/normal
-// matrix-index override is likewise read and discarded, since the
-// transform pipeline doesn't act on a per-vertex matrix index yet.
+// command stream in sync) but discarded. A per-vertex position/normal
+// matrix-index override is read into Vertex.MatrixIndex and applied by
+// decode.go's transformVertex - real hardware's per-vertex skinning.
 package gpu
 
 // defaultVCDLo/defaultVCDHi describe this project's original fixed
@@ -124,14 +124,15 @@ func (cp *CommandProcessor) decodeDynamicVertex(vcd vertexDescriptor, b []byte) 
 	var v Vertex
 	cursor := 0
 
-	// Per-vertex matrix-index override bytes: consumed here only to
-	// keep cursor in sync with the rest of the vertex, then thrown
-	// away. This is a known, significant gap, not just a cosmetic one:
-	// real games commonly rely on a per-vertex matrix index for
-	// skinning (e.g. attaching vertices to different bones), so a
-	// model using it will transform incorrectly until this is wired
-	// into the transform pipeline (xf package) instead of discarded.
+	// Per-vertex position/normal matrix-index override: real hardware's
+	// per-vertex skinning mechanism. transformVertex (decode.go) applies
+	// it in place of xf.RegMatrixSelection0's GeometryIndex when
+	// present.
 	if vcd.lo.PosNormalMatrixIdxPresent() {
+		if cursor < len(b) {
+			v.HasMatrixIndexOverride = true
+			v.MatrixIndex = b[cursor]
+		}
 		cursor++
 	}
 	for i := 0; i < 8; i++ {

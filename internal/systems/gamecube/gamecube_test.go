@@ -47,6 +47,27 @@ func TestVIVBlankRaisesRealExternalInterrupt(t *testing.T) {
 	}
 }
 
+func TestAIPlayingGatesAudioMixerStepping(t *testing.T) {
+	g := New(nil)
+	g.Audio.SetChannel(0, 1000, 255, true)
+
+	g.Step() // AI not playing yet: Audio shouldn't advance
+	if len(g.Audio.DrainSamples()) != 0 {
+		t.Fatal("expected no samples while AI isn't playing")
+	}
+
+	g.proc.SetGPR(4, ai.Base)
+	g.proc.SetGPR(3, 1) // PSTAT=1
+	instr := uint32(36)<<26 | 3<<21 | 4<<16
+	g.LoadAt(4, []byte{byte(instr >> 24), byte(instr >> 16), byte(instr >> 8), byte(instr)})
+	g.proc.SetPC(4)
+	g.Step() // stw sets PSTAT; AI is playing by the time this same Step checks it
+
+	if len(g.Audio.DrainSamples()) != 1 {
+		t.Fatal("expected exactly one sample once AI starts playing")
+	}
+}
+
 func TestResetClearsState(t *testing.T) {
 	g := New(nil)
 	g.LoadAt(0, []byte{0, 0, 0, 1})

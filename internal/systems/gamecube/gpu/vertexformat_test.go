@@ -92,6 +92,45 @@ func TestVCDAbsentTexCoordLeavesUVZeroAndShrinksStreamWidth(t *testing.T) {
 	}
 }
 
+func TestPerVertexMatrixIndexOverridesRegisterSelection(t *testing.T) {
+	cp := New()
+	// Row 1 (word address 4) holds a translate-by-50 matrix; row 0
+	// (New's default) stays identity, so picking the wrong one is
+	// obvious.
+	translate := []float32{
+		1, 0, 0, 50,
+		0, 1, 0, 0,
+		0, 0, 1, 0,
+	}
+	var stream []byte
+	for i, f := range translate {
+		stream = append(stream, loadXFRegBytes(uint16(4+i), math.Float32bits(f))...)
+	}
+	// VCD_LO: PosNormalMatrixIdxPresent (bit 0), Position/Normal/Color0 direct.
+	stream = append(stream, loadVCDLoBytes(0, 1|uint32(AttrDirect)<<9|uint32(AttrDirect)<<11|uint32(AttrDirect)<<13)...)
+
+	stream = append(stream, cmdDrawTriangles, 0x00, 0x03)
+	// Each vertex: matIdx(1) + position(6) + normal(6) + color(4) = 17 bytes.
+	vertex := []byte{
+		1,                // per-vertex matrix index override -> row 1
+		0, 0, 0, 0, 0, 0, // position (0,0,0)
+		0, 0, 0, 0, 0, 0, // normal
+		255, 255, 255, 255, // color
+	}
+	stream = append(stream, vertex...)
+	stream = append(stream, vertex...)
+	stream = append(stream, vertex...)
+	cp.Execute(stream)
+
+	tris := cp.DrainTriangles()
+	if len(tris) != 1 {
+		t.Fatalf("got %d triangles, want 1", len(tris))
+	}
+	if tris[0].V0.X != 50 {
+		t.Fatalf("V0.X = %d, want 50 (per-vertex matrix index override should pick row 1, not the register-selected row 0)", tris[0].V0.X)
+	}
+}
+
 func TestMatIdxRegABridgesToRealXFMatrixSelection(t *testing.T) {
 	cp := New()
 	translate := []float32{

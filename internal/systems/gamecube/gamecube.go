@@ -12,6 +12,7 @@ package gamecube
 
 import (
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/ai"
+	"github.com/Duc-inc/espaze/internal/systems/gamecube/audio"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/di"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/memory"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/si"
@@ -28,6 +29,14 @@ type GameCube struct {
 	SI *si.SI
 	DI *di.DI
 	AI *ai.AI
+
+	// Audio is the sample mixer AI's PSTAT bit gates (Step below) - AI
+	// itself only tracks streaming on/off and volume, it has no sample
+	// data of its own; a caller feeds real channel data into Audio via
+	// SetChannel/SetADPCMChannel same as before this field existed.
+	// AI.Volume()'s L/R scaling isn't applied to Audio's output - Mixer
+	// only produces one mixed mono sample, not a stereo pair.
+	Audio *audio.Mixer
 }
 
 // New wires a fresh CPU, memory bus, and VI/SI/DI/AI peripherals
@@ -41,6 +50,7 @@ func New(discImage []byte) *GameCube {
 	g.SI = si.New()
 	g.DI = di.New(discImage, g.bus)
 	g.AI = ai.New()
+	g.Audio = audio.New()
 
 	g.bus.Attach(vi.Base, vi.Size, g.VI)
 	g.bus.Attach(si.Base, si.Size, g.SI)
@@ -71,6 +81,9 @@ func (g *GameCube) Step() int {
 	}
 	if g.AI.Step() {
 		g.proc.RaiseExternalInterrupt()
+	}
+	if g.AI.Playing() {
+		g.Audio.Step(1)
 	}
 	return cycles
 }

@@ -96,13 +96,21 @@ func (cp *CommandProcessor) execute(stream []byte, depth int) {
 // normal + current ambient/lights, xf.Illuminate), replacing R/G/B
 // with the lit color. With the default white ambient and no lights
 // enabled (New), Illuminate returns the vertex's own color unchanged.
+// A vertex carrying a matrix-index override (v.HasMatrixIndexOverride,
+// real hardware's per-vertex skinning) transforms against that index's
+// position/normal matrix instead of the current register selection.
 func (cp *CommandProcessor) transformVertex(v Vertex) Vertex {
+	regs := cp.xfState.Registers
+	if v.HasMatrixIndexOverride {
+		regs.MatrixSelection0 = xf.MatrixSelection0(uint32(regs.MatrixSelection0)&^0x3f | uint32(v.MatrixIndex)&0x3f)
+	}
+
 	model := xf.Vec3{X: float32(v.X), Y: float32(v.Y), Z: float32(v.Z)}
-	screen := xf.TransformPosition(model, &cp.xfState.Memory, cp.xfState.Registers)
-	viewSpace := xf.ViewSpacePosition(model, &cp.xfState.Memory, cp.xfState.Registers)
+	screen := xf.TransformPosition(model, &cp.xfState.Memory, regs)
+	viewSpace := xf.ViewSpacePosition(model, &cp.xfState.Memory, regs)
 
 	modelNormal := xf.Vec3{X: float32(v.NX), Y: float32(v.NY), Z: float32(v.NZ)}
-	normal := xf.TransformNormal(modelNormal, &cp.xfState.Memory, cp.xfState.Registers)
+	normal := xf.TransformNormal(modelNormal, &cp.xfState.Memory, regs)
 	material := xf.LightColor{R: float32(v.R) / 255, G: float32(v.G) / 255, B: float32(v.B) / 255}
 	lit := xf.Illuminate(viewSpace, normal, material, cp.ambient, cp.lights[:])
 
