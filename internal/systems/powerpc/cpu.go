@@ -43,6 +43,12 @@ func (c *CPU) SetPC(addr uint32)        { c.regs.PC = addr }
 func (c *CPU) SetGPR(reg int, v uint32) { c.regs.GPR[reg&0x1F] = v }
 func (c *CPU) GPR(reg int) uint32       { return c.regs.GPR[reg&0x1F] }
 
+// SetMSR/MSR let a caller inspect/seed the Machine State Register -
+// mainly so callers can set MSR[EE] (see exceptions.go) without real
+// IPL firmware around to do it via mtmsr.
+func (c *CPU) SetMSR(v uint32) { c.regs.MSR = v }
+func (c *CPU) MSR() uint32     { return c.regs.MSR }
+
 func (c *CPU) fetch32() uint32 {
 	v := c.read32(c.regs.PC)
 	c.regs.PC += 4

@@ -71,7 +71,6 @@ func TestTransformPositionIdentityPipelineIsUnchanged(t *testing.T) {
 	writePosMatrix(mem, 0, IdentityPos())
 
 	regs := NewRegisters()
-	regs.PosMatrixIndex = 0
 	regs.Projection = Projection{
 		Coeffs: [6]float32{1, 0, 1, 0, 1, 0},
 		Type:   ProjectionOrthographic,
@@ -106,15 +105,66 @@ func TestTransformPositionAppliesTranslationAndViewport(t *testing.T) {
 	}
 }
 
+func TestViewSpacePositionUsesGeometryIndexFromMatrixSelection0(t *testing.T) {
+	mem := NewMemory()
+	// Row 1 (word address 4, since each row is 4 words) holds a
+	// translate-by-20 matrix; row 0 stays identity so picking the
+	// wrong row would be obvious.
+	writePosMatrix(mem, 0, IdentityPos())
+	writePosMatrix(mem, 4, PosMatrix{
+		{1, 0, 0, 20},
+		{0, 1, 0, 0},
+		{0, 0, 1, 0},
+	})
+
+	var regs Registers
+	regs.Write(RegMatrixSelection0, 1) // GeometryIndex = 1 -> row 1
+
+	got := ViewSpacePosition(Vec3{X: 0, Y: 0, Z: 0}, mem, regs)
+	want := Vec3{X: 20, Y: 0, Z: 0}
+	if got != want {
+		t.Fatalf("got %+v, want %+v", got, want)
+	}
+}
+
+func TestGenerateTexCoordFromGeomSource(t *testing.T) {
+	mem := NewMemory()
+	writePosMatrix(mem, 0, PosMatrix{
+		{2, 0, 0, 1},
+		{0, 2, 0, 0},
+		{0, 0, 2, 0},
+	})
+
+	var regs Registers
+	regs.Write(RegTexCoordCtrlStart, 0) // Type=Regular, SourceRow=SourceGeom (both 0)
+
+	u, v, ok := GenerateTexCoord(0, Vec3{X: 3, Y: 4, Z: 0}, Vec3{}, mem, regs)
+	if !ok {
+		t.Fatal("expected ok=true for a regular/geom generator")
+	}
+	if u != 7 || v != 8 {
+		t.Fatalf("got (%v,%v), want (7,8)", u, v)
+	}
+}
+
+func TestGenerateTexCoordRejectsNonRegularType(t *testing.T) {
+	mem := NewMemory()
+	var regs Registers
+	regs.Write(RegTexCoordCtrlStart, uint32(TexGenEmbossMap)<<4)
+
+	if _, _, ok := GenerateTexCoord(0, Vec3{}, Vec3{}, mem, regs); ok {
+		t.Fatal("expected ok=false for a non-regular TexGenType")
+	}
+}
+
 func TestTransformNormalNormalizesAfterScale(t *testing.T) {
 	mem := NewMemory()
-	writeNormalMatrix(mem, 0, NormalMatrix{
+	writeNormalMatrix(mem, NormalMatricesStart, NormalMatrix{
 		{2, 0, 0},
 		{0, 2, 0},
 		{0, 0, 2},
 	})
-	regs := NewRegisters()
-	regs.NormalMatrixIndex = 0
+	regs := NewRegisters() // GeometryIndex 0 -> NormalMatrixAddr() == NormalMatricesStart
 
 	got := TransformNormal(Vec3{X: 0, Y: 0, Z: 3}, mem, regs)
 	want := Vec3{X: 0, Y: 0, Z: 1}

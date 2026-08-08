@@ -59,6 +59,13 @@ type registers struct {
 	// entries (indices 0-3 = IBAT0-3, 4-7 = DBAT0-3, matching real SPR
 	// ordering) - see mmu.go.
 	bats [8]bat
+
+	// MSR/SRR0/SRR1 are real PowerPC ISA registers (Machine State
+	// Register, Save/Restore Registers) exceptions.go uses to deliver
+	// the external interrupt exception - see that file's doc comment.
+	MSR  uint32
+	SRR0 uint32
+	SRR1 uint32
 }
 
 // XER bit positions.

@@ -132,69 +132,22 @@ func TestBPTextureBindWithoutMemoryReaderStaysNil(t *testing.T) {
 	}
 }
 
-func TestXFRegistersBindAmbient(t *testing.T) {
-	cp := New()
-	var stream []byte
-	stream = append(stream, loadXFRegBytes(xfRegAmbientR, math.Float32bits(0.5))...)
-	stream = append(stream, loadXFRegBytes(xfRegAmbientG, math.Float32bits(0.25))...)
-	stream = append(stream, loadXFRegBytes(xfRegAmbientB, math.Float32bits(0))...)
-	cp.Execute(stream)
-
-	want := xf.LightColor{R: 0.5, G: 0.25, B: 0}
-	if cp.ambient.Color != want {
-		t.Fatalf("ambient = %+v, want %+v", cp.ambient.Color, want)
-	}
-}
-
-func TestXFRegistersBindLightAndAffectRendering(t *testing.T) {
-	cp := New()
-	cp.xfMemory.WriteNormalMatrix(100, xf.NormalMatrix{
-		{1, 0, 0}, {0, 1, 0}, {0, 0, 1},
-	})
-	cp.xfRegisters.NormalMatrixIndex = 100
-
-	var stream []byte
-	stream = append(stream, loadXFRegBytes(xfRegAmbientR, math.Float32bits(0))...)
-	stream = append(stream, loadXFRegBytes(xfRegAmbientG, math.Float32bits(0))...)
-	stream = append(stream, loadXFRegBytes(xfRegAmbientB, math.Float32bits(0))...)
-	base := uint16(xfRegLightBase)
-	stream = append(stream, loadXFRegBytes(base+0, math.Float32bits(0))...) // pos.x
-	stream = append(stream, loadXFRegBytes(base+1, math.Float32bits(0))...) // pos.y
-	stream = append(stream, loadXFRegBytes(base+2, math.Float32bits(10))...) // pos.z
-	stream = append(stream, loadXFRegBytes(base+3, math.Float32bits(1))...) // color.r
-	stream = append(stream, loadXFRegBytes(base+4, math.Float32bits(1))...) // color.g
-	stream = append(stream, loadXFRegBytes(base+5, math.Float32bits(1))...) // color.b
-	stream = append(stream, loadXFRegBytes(base+6, 1)...)                   // enabled
-
-	stream = append(stream, cmdDrawTriangles, 0x00, 0x03)
-	v := Vertex{X: 0, Y: 0, Z: 0, NZ: 1, R: 255, G: 255, B: 255, A: 255}
-	stream = append(stream, vertexBytesOf(v)...)
-	stream = append(stream, vertexBytesOf(v)...)
-	stream = append(stream, vertexBytesOf(v)...)
-	cp.Execute(stream)
-
-	tris := cp.DrainTriangles()
-	if len(tris) != 1 {
-		t.Fatalf("got %d triangles, want 1", len(tris))
-	}
-	if tris[0].V0.R != 255 || tris[0].V0.G != 255 || tris[0].V0.B != 255 {
-		t.Fatalf("color = (%d,%d,%d), want (255,255,255): light bound via LOAD_XF_REG facing the normal with white material",
-			tris[0].V0.R, tris[0].V0.G, tris[0].V0.B)
-	}
-}
-
-func TestXFRegistersSelectPositionMatrixIndex(t *testing.T) {
+func TestXFRegistersSelectPositionMatrixViaRealMatrixSelection0(t *testing.T) {
 	cp := New()
 	translate := []float32{
 		1, 0, 0, 20,
 		0, 1, 0, 0,
 		0, 0, 1, 0,
 	}
+	// Row 1 of the position-matrix block (word address 4, since each
+	// row is 4 words) - row 0 stays the default identity matrix New()
+	// already wrote, so picking the wrong row would be obvious.
 	var stream []byte
 	for i, f := range translate {
-		stream = append(stream, loadXFRegBytes(uint16(200+i), math.Float32bits(f))...)
+		stream = append(stream, loadXFRegBytes(uint16(4+i), math.Float32bits(f))...)
 	}
-	stream = append(stream, loadXFRegBytes(xfRegPosMatrixIndex, 200)...)
+	// RegMatrixSelection0 (real XF register 0x1018): GeometryIndex=1 selects row 1.
+	stream = append(stream, loadXFRegBytes(xf.RegMatrixSelection0, 1)...)
 
 	stream = append(stream, cmdDrawTriangles, 0x00, 0x03)
 	v := Vertex{X: 0, Y: 0}
@@ -208,6 +161,38 @@ func TestXFRegistersSelectPositionMatrixIndex(t *testing.T) {
 		t.Fatalf("got %d triangles, want 1", len(tris))
 	}
 	if tris[0].V0.X != 20 {
-		t.Fatalf("V0.X = %d, want 20 (matrix selected via xfRegPosMatrixIndex)", tris[0].V0.X)
+		t.Fatalf("V0.X = %d, want 20 (matrix selected via the real RegMatrixSelection0 register)", tris[0].V0.X)
+	}
+}
+
+func TestXFLightMemoryWriteDrivesRealLighting(t *testing.T) {
+	cp := New()
+	// Identity normal matrix at the default GeometryIndex(0) address.
+	cp.xfState.Memory.WriteNormalMatrix(xf.NormalMatricesStart, xf.NormalMatrix{
+		{1, 0, 0}, {0, 1, 0}, {0, 0, 1},
+	})
+	cp.SetAmbient(xf.Ambient{}) // isolate the light's own contribution
+
+	lightBase := uint16(xf.LightsStart) // light 0
+	var stream []byte
+	stream = append(stream, loadXFRegBytes(lightBase+xf.LightColorOffset, 0xFFFFFF00)...) // R=G=B=255
+	stream = append(stream, loadXFRegBytes(lightBase+xf.LightPositionOffset, math.Float32bits(0))...)
+	stream = append(stream, loadXFRegBytes(lightBase+xf.LightPositionOffset+1, math.Float32bits(0))...)
+	stream = append(stream, loadXFRegBytes(lightBase+xf.LightPositionOffset+2, math.Float32bits(10))...)
+
+	stream = append(stream, cmdDrawTriangles, 0x00, 0x03)
+	v := Vertex{X: 0, Y: 0, Z: 0, NZ: 1, R: 255, G: 255, B: 255, A: 255}
+	stream = append(stream, vertexBytesOf(v)...)
+	stream = append(stream, vertexBytesOf(v)...)
+	stream = append(stream, vertexBytesOf(v)...)
+	cp.Execute(stream)
+
+	tris := cp.DrainTriangles()
+	if len(tris) != 1 {
+		t.Fatalf("got %d triangles, want 1", len(tris))
+	}
+	if tris[0].V0.R != 255 || tris[0].V0.G != 255 || tris[0].V0.B != 255 {
+		t.Fatalf("color = (%d,%d,%d), want (255,255,255): a real LOAD_XF_REG write into XF light memory should drive lighting, not just SetLight",
+			tris[0].V0.R, tris[0].V0.G, tris[0].V0.B)
 	}
 }

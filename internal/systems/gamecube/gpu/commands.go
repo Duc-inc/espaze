@@ -5,9 +5,14 @@
 // The command opcode values themselves are well-documented in public
 // community references (e.g. YAGCD - Yet Another GameCube
 // Documentation - independent of any specific emulator's source).
-// Vertex attribute format decoding is simplified to one fixed layout
-// (position, normal, UV texture coordinate, and color) rather than
-// the real chip's fully configurable per-attribute format table.
+// Vertex format decoding (vcd.go, cpregs.go, vertexformat.go) follows
+// CP's real vertex descriptor and array registers - each attribute can
+// be absent, direct, or indexed, matching real hardware, though this
+// project's own Vertex type still only carries one color and one
+// texcoord (see vertexformat.go's own doc comment for what that means
+// for Color1/TexCoord1-7), and component precision still uses this
+// project's simplified fixed sizes rather than the real (ambiguously
+// documented in this project's source) VAT format registers.
 //
 // Every decoded vertex position is run through the xf package's
 // transform pipeline (position matrix -> projection -> perspective
@@ -21,26 +26,24 @@
 // behavior before lighting existed. A texture bound (see bind.go) is
 // sampled per pixel and combined with that lit color (render.go).
 //
-// bind.go decodes LOAD_BP_REG/LOAD_XF_REG writes at a small set of
-// addresses this project reserves for binding state (texture setup,
-// ambient, light objects, active matrix index) - a real command
-// stream now drives what used to require calling SetTexture/
-// SetAmbient/SetLight/etc. directly. Real hardware's exact BP/XF
-// register numbers for this state aren't independently verified here
-// (unlike the well-documented CP/XF/BP command opcodes themselves);
-// this project reserves its own addresses for it rather than guessing
-// real ones, the same way the vertex format is this project's own
-// simplified layout rather than real hardware's configurable one.
-// SetTexture/SetAmbient/SetLight remain available too, for callers
-// that don't go through a command stream.
-//
-// indexed.go adds a second vertex path alongside the direct layout
-// above: a reserved CP register (cpVertexMode) switches a draw call to
-// reading 16-bit position/normal/UV array indices instead of full
-// vertex data, resolved against array base/stride CP registers and
-// fetched through the same MemoryReader texture binding uses - closer
-// to how real games actually supply geometry (shared vertex arrays,
-// referenced by index) than always re-sending full vertex data.
+// bind.go decodes LOAD_BP_REG writes at a small set of project-local
+// BP addresses for texture setup and the TEV op - real hardware's
+// exact BP register numbers for this aren't independently verified
+// here (unlike the well-documented CP/XF/BP command opcodes
+// themselves), so this project reserves its own rather than guessing
+// real ones. LOAD_XF_REG writes go through the real XF address split
+// documented in the xf package (memory below xf.RegistersStart,
+// decoded control registers from xf.RegistersStart) - matrix
+// selection (xf.RegMatrixSelection0) now drives the active position
+// matrix directly from a real register instead of a project-local
+// stand-in, and a write landing in XF's real light-memory block
+// (xf.LightsStart..xf.LightsEnd) refreshes the matching cp.lights
+// entry via xf.Memory.ReadLight - a simplified bridge that only reads
+// a light's position and color (see lightmemory.go's own doc comment
+// in the xf package for what's deliberately not decoded yet).
+// SetAmbient/SetLight remain available too, for callers that don't go
+// through a command stream, or want to override what LOAD_XF_REG
+// derived.
 package gpu
 
 import (
@@ -64,15 +67,17 @@ const (
 	cmdDrawPoints      = 0xB8
 )
 
-// Vertex is this project's own simplified fixed vertex layout: a
-// position, a normal, a texture coordinate, and a flat RGBA color,
-// read directly from the command stream (20 bytes: 3x int16 position,
-// 3x int16 normal, 2x int16 UV, 4x byte color) - real hardware's
-// vertex format is fully configurable (position can be 2D/3D, indexed
-// or direct, with independent normal and up to 8 texture-coordinate
-// attributes); this project always expects the one layout. The
-// position starts out in model space as decoded, then gets replaced
-// with its screen-space result once Execute runs it through the xf
+// Vertex is this project's own simplified vertex shape: a position, a
+// normal, a texture coordinate, and a flat RGBA color - real
+// hardware's vertex format allows independent per-attribute encoding
+// and up to 8 texture-coordinate sets (vcd.go), which vertexformat.go
+// now decodes for real, but this type still only has room for one
+// color and one texcoord. Each component's own byte size (int16 for
+// position/normal/texcoord, one byte per color channel) is this
+// project's simplified fixed choice, not derived from the real (not
+// confidently decodable from this project's source) VAT format
+// registers. The position starts out in model space as decoded, then
+// gets replaced with its screen-space result once Execute runs it through the xf
 // transform pipeline; the color similarly starts as the vertex's own
 // flat color and gets replaced by the lit result of that color once
 // Execute runs the normal through xf.Illuminate - by the time a
@@ -87,8 +92,6 @@ type Vertex struct {
 	U, V       int16
 	R, G, B, A byte
 }
-
-const vertexBytes = 3*2 + 3*2 + 2*2 + 4
 
 // MaxTexStages is how many simultaneous texture stages this project
 // supports - matching real hardware's own texture map count (GX_MAX_
@@ -112,8 +115,7 @@ type CommandProcessor struct {
 	cpRegs [256]uint32
 	bpRegs [256]uint32
 
-	xfMemory    *xf.Memory
-	xfRegisters xf.Registers
+	xfState *xf.State
 
 	ambient xf.Ambient
 	lights  [xf.MaxLights]xf.Light
@@ -123,6 +125,17 @@ type CommandProcessor struct {
 	pendingTex    [MaxTexStages]pendingTexture
 	tevOps        [MaxTexStages]TEVOp
 	activeTexSlot int
+
+	// Vertex format state (vcd.go, cpregs.go, vertexformat.go): matrix
+	// index selectors, the vertex descriptor (8 format slots, though
+	// this project always decodes slot 0 - see vertexformat.go's
+	// currentVCD), and the per-attribute array table.
+	matIdxA     MatIdxRegA
+	matIdxB     MatIdxRegB
+	vcdLo       [8]VCDLo
+	vcdHi       [8]VCDHi
+	arrayBase   [16]uint32
+	arrayStride [16]byte
 
 	pendingTriangles []Triangle
 }
@@ -185,19 +198,16 @@ func (cp *CommandProcessor) SetTexture(slot int, t *texture.Texture) {
 // overwrites these defaults via LOAD_XF_REG/SetAmbient/SetLight once
 // it starts drawing.
 func New() *CommandProcessor {
-	mem := xf.NewMemory()
-	mem.WritePosMatrix(0, xf.IdentityPos())
-
-	regs := xf.NewRegisters()
-	regs.Projection = xf.Projection{
+	state := xf.NewState()
+	state.Memory.WritePosMatrix(0, xf.IdentityPos())
+	state.Registers.Projection = xf.Projection{
 		Coeffs: [6]float32{1, 0, 1, 0, 1, 0},
 		Type:   xf.ProjectionOrthographic,
 	}
 
 	cp := &CommandProcessor{
-		xfMemory:    mem,
-		xfRegisters: regs,
-		ambient:     xf.Ambient{Color: xf.LightColor{R: 1, G: 1, B: 1}},
+		xfState: state,
+		ambient: xf.Ambient{Color: xf.LightColor{R: 1, G: 1, B: 1}},
 	}
 	cp.tevOps[0] = TEVModulate // matches this project's pre-multi-texture default
 	return cp

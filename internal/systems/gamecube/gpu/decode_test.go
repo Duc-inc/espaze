@@ -7,12 +7,16 @@ import (
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/xf"
 )
 
+// vertexBytesOf packs a Vertex in the real hardware attribute order
+// the default vertex descriptor (vertexformat.go's defaultVCDLo/Hi)
+// expects: position, normal, color0, then texcoord0 - not this
+// project's earlier (incorrect) position/normal/texcoord/color order.
 func vertexBytesOf(v Vertex) []byte {
 	return []byte{
 		byte(v.X >> 8), byte(v.X), byte(v.Y >> 8), byte(v.Y), byte(v.Z >> 8), byte(v.Z),
 		byte(v.NX >> 8), byte(v.NX), byte(v.NY >> 8), byte(v.NY), byte(v.NZ >> 8), byte(v.NZ),
-		byte(v.U >> 8), byte(v.U), byte(v.V >> 8), byte(v.V),
 		v.R, v.G, v.B, v.A,
+		byte(v.U >> 8), byte(v.U), byte(v.V >> 8), byte(v.V),
 	}
 }
 
@@ -48,6 +52,29 @@ func TestLoadBPRegPacksAddressAndData(t *testing.T) {
 	cp.Execute([]byte{cmdLoadBPReg, 0x40, 0x00, 0x12, 0x34})
 	if cp.bpRegs[0x40] != 0x001234 {
 		t.Fatalf("bpRegs[0x40] = %#06x, want 0x001234", cp.bpRegs[0x40])
+	}
+}
+
+func TestTexGenGeneratesUVFromPositionViaTextureMatrix(t *testing.T) {
+	cp := New()
+	// TextureMatrixAddr(0) defaults to row 0 (Texture0Index unset),
+	// same identity matrix New() already wrote for the position matrix.
+	cp.Execute(loadXFRegBytes(xf.RegNumTexGens, 1))
+	cp.Execute(loadXFRegBytes(xf.RegTexCoordCtrlStart, 0)) // Regular, SourceGeom
+
+	v := Vertex{X: 3, Y: 4, Z: 0, U: 99, V: 99}
+	stream := []byte{cmdDrawTriangles, 0x00, 0x03}
+	stream = append(stream, vertexBytesOf(v)...)
+	stream = append(stream, vertexBytesOf(v)...)
+	stream = append(stream, vertexBytesOf(v)...)
+	cp.Execute(stream)
+
+	tris := cp.DrainTriangles()
+	if len(tris) != 1 {
+		t.Fatalf("got %d triangles, want 1", len(tris))
+	}
+	if tris[0].V0.U != 3 || tris[0].V0.V != 4 {
+		t.Fatalf("V0 UV = (%d,%d), want (3,4)", tris[0].V0.U, tris[0].V0.V)
 	}
 }
 
@@ -144,15 +171,14 @@ func TestLoadXFRegUploadsMatrixThatTransformsVertices(t *testing.T) {
 
 func TestLightingLeavesColorUnchangedWithFullyFacingLightAndNoAmbient(t *testing.T) {
 	cp := New()
-	// Give the normal matrix its own address so it doesn't overlap
-	// the identity position matrix New() already wrote at address 0,
-	// and make it identity too.
-	cp.xfMemory.WriteNormalMatrix(100, xf.NormalMatrix{
+	// The normal matrix shares the default position matrix's index
+	// (GeometryIndex 0, xf.Registers.NormalMatrixAddr), which lands at
+	// NormalMatricesStart - make it identity too.
+	cp.xfState.Memory.WriteNormalMatrix(xf.NormalMatricesStart, xf.NormalMatrix{
 		{1, 0, 0},
 		{0, 1, 0},
 		{0, 0, 1},
 	})
-	cp.xfRegisters.NormalMatrixIndex = 100
 
 	cp.SetAmbient(xf.Ambient{})
 	cp.SetLight(0, xf.Light{
@@ -180,12 +206,11 @@ func TestLightingLeavesColorUnchangedWithFullyFacingLightAndNoAmbient(t *testing
 
 func TestLightingDarkensSurfaceFacingAwayFromLight(t *testing.T) {
 	cp := New()
-	cp.xfMemory.WriteNormalMatrix(100, xf.NormalMatrix{
+	cp.xfState.Memory.WriteNormalMatrix(xf.NormalMatricesStart, xf.NormalMatrix{
 		{1, 0, 0},
 		{0, 1, 0},
 		{0, 0, 1},
 	})
-	cp.xfRegisters.NormalMatrixIndex = 100
 
 	cp.SetAmbient(xf.Ambient{}) // no ambient term either
 	cp.SetLight(0, xf.Light{

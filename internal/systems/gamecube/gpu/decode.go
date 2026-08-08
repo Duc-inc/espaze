@@ -43,6 +43,7 @@ func (cp *CommandProcessor) execute(stream []byte, depth int) {
 			reg := stream[pos]
 			val := be32(stream[pos+1:])
 			cp.cpRegs[reg] = val
+			cp.applyCPRegisterWrite(reg, val)
 			pos += 5
 		case opcode == cmdLoadXFReg:
 			if pos+6 > len(stream) {
@@ -50,8 +51,10 @@ func (cp *CommandProcessor) execute(stream []byte, depth int) {
 			}
 			reg := be16(stream[pos:])
 			val := be32(stream[pos+2:])
-			cp.xfMemory.Write(reg, val)
-			cp.applyXFRegisterWrite(reg, val)
+			cp.xfState.Load(reg, []uint32{val})
+			if idx, ok := xf.LightIndexForAddr(reg); ok {
+				cp.lights[idx] = cp.xfState.Memory.ReadLight(idx)
+			}
 			pos += 6
 		case opcode == cmdLoadBPReg:
 			if pos+4 > len(stream) {
@@ -68,22 +71,14 @@ func (cp *CommandProcessor) execute(stream []byte, depth int) {
 			}
 			count := int(be16(stream[pos:]))
 			pos += 2
-			indexed := cp.isIndexed()
-			vb := vertexBytes
-			if indexed {
-				vb = indexedVertexBytes
-			}
+			vcd := cp.currentVCD()
+			vb := vcd.byteWidth()
 			verts := make([]Vertex, 0, count)
 			for i := 0; i < count; i++ {
 				if pos+vb > len(stream) {
 					return
 				}
-				var v Vertex
-				if indexed {
-					v = cp.decodeIndexedVertex(stream[pos:])
-				} else {
-					v = decodeVertex(stream[pos:])
-				}
+				v := cp.decodeDynamicVertex(vcd, stream[pos:])
 				verts = append(verts, cp.transformVertex(v))
 				pos += vb
 			}
@@ -91,15 +86,6 @@ func (cp *CommandProcessor) execute(stream []byte, depth int) {
 		default:
 			return // unrecognized opcode: stop rather than misparse the rest of the stream
 		}
-	}
-}
-
-func decodeVertex(b []byte) Vertex {
-	return Vertex{
-		X: int16(be16(b)), Y: int16(be16(b[2:])), Z: int16(be16(b[4:])),
-		NX: int16(be16(b[6:])), NY: int16(be16(b[8:])), NZ: int16(be16(b[10:])),
-		U: int16(be16(b[12:])), V: int16(be16(b[14:])),
-		R: b[16], G: b[17], B: b[18], A: b[19],
 	}
 }
 
@@ -112,16 +98,22 @@ func decodeVertex(b []byte) Vertex {
 // enabled (New), Illuminate returns the vertex's own color unchanged.
 func (cp *CommandProcessor) transformVertex(v Vertex) Vertex {
 	model := xf.Vec3{X: float32(v.X), Y: float32(v.Y), Z: float32(v.Z)}
-	screen := xf.TransformPosition(model, cp.xfMemory, cp.xfRegisters)
-	viewSpace := xf.ViewSpacePosition(model, cp.xfMemory, cp.xfRegisters)
+	screen := xf.TransformPosition(model, &cp.xfState.Memory, cp.xfState.Registers)
+	viewSpace := xf.ViewSpacePosition(model, &cp.xfState.Memory, cp.xfState.Registers)
 
 	modelNormal := xf.Vec3{X: float32(v.NX), Y: float32(v.NY), Z: float32(v.NZ)}
-	normal := xf.TransformNormal(modelNormal, cp.xfMemory, cp.xfRegisters)
+	normal := xf.TransformNormal(modelNormal, &cp.xfState.Memory, cp.xfState.Registers)
 	material := xf.LightColor{R: float32(v.R) / 255, G: float32(v.G) / 255, B: float32(v.B) / 255}
 	lit := xf.Illuminate(viewSpace, normal, material, cp.ambient, cp.lights[:])
 
 	v.X, v.Y, v.Z = int16(screen.X), int16(screen.Y), int16(screen.Z)
 	v.R, v.G, v.B = byte(lit.R*255), byte(lit.G*255), byte(lit.B*255)
+
+	if cp.xfState.Registers.NumTexGens > 0 {
+		if u, uv, ok := xf.GenerateTexCoord(0, model, modelNormal, &cp.xfState.Memory, cp.xfState.Registers); ok {
+			v.U, v.V = int16(u), int16(uv)
+		}
+	}
 	return v
 }
 

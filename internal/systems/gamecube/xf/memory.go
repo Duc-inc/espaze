@@ -1,25 +1,45 @@
-// memory.go holds the XF unit's raw uploaded matrix data - the
-// address space real hardware calls "XF memory", distinct from XF's
-// control registers (registers.go). Games write into it via
-// LOAD_XF_REG commands whose address falls in the memory range rather
-// than the register range. Which addresses correspond to which
-// matrix region (position/normal/texture) is left for implementation
-// time, to be verified against YAGCD as each region is actually
-// wired up rather than guessed upfront.
+// memory.go holds the XF unit's raw uploaded matrix and light data -
+// the address space real hardware calls "XF memory", distinct from
+// XF's control registers (registers.go). Public GameCube hardware
+// notes (YAGCD chapter 5, "internal XF Memory") describe this
+// occupying word addresses 0x0000-0x0fff, with control registers
+// starting at 0x1000 (registers.go, state.go). Address sub-ranges
+// YAGCD's own wording leaves ambiguous are documented as such below
+// rather than asserted as verified fact.
 package xf
 
 import "math"
 
-// memSize is a working capacity for XF memory. Real hardware's exact
-// total size is left to confirm against YAGCD once actual address
-// ranges (position matrices, normal matrices, texture matrices) are
-// wired up; this is sized generously in the meantime so nothing a
-// real command stream writes gets silently dropped during
-// development.
-const memSize = 4096
+const (
+	MemorySize = 0x1000
 
-// Memory holds the XF unit's raw uploaded matrix data, addressed the
-// same way real LOAD_XF_REG commands address it: by 32-bit word
+	// PosMatricesStart/End: 64 rows of 4 words each (256 words total).
+	PosMatricesStart = 0x000
+	PosMatricesEnd   = 0x100
+	// NormalMatricesStart/End: 32 rows of 3 words each (96 words total).
+	NormalMatricesStart = 0x400
+	NormalMatricesEnd   = 0x460
+	// DualTexMatricesStart/End: dual-texture transform matrices, the
+	// same row shape as the position-matrix block.
+	DualTexMatricesStart = 0x500
+	DualTexMatricesEnd   = 0x600
+	// LightsStart/End: light 0 begins at LightsStart; each of up to
+	// MaxLights lights occupies 16 words (lighting.go covers the
+	// simplified position+color model this project currently derives
+	// from a light, not this raw block's full field layout).
+	LightsStart = 0x600
+	LightsEnd   = 0x680
+
+	// 0x0100-0x03ff, 0x0460-0x04ff, and 0x0680-0x0fff are reserved/
+	// unknown for this project - YAGCD's own wording around these
+	// gaps is ambiguous, so no constant claims a meaning for them.
+)
+
+// memSize is a package-local alias kept for existing snapshot/test code.
+const memSize = MemorySize
+
+// Memory holds the XF unit's raw uploaded matrix/light data, addressed
+// the same way real LOAD_XF_REG commands address it: by 32-bit word
 // index, not byte offset. Values are stored as the raw bits the
 // command stream carries and reinterpreted as float32 on read, since
 // that's how real GX matrix uploads work - IEEE-754 floats carried as
@@ -42,13 +62,18 @@ func (m *Memory) Write(addr uint16, word uint32) {
 	m.words[addr] = word
 }
 
-// ReadFloat32 reinterprets the word at addr as an IEEE-754 float32.
-// An out-of-range address reads as 0.
-func (m *Memory) ReadFloat32(addr uint16) float32 {
+// Read returns the raw 32-bit word at addr. An out-of-range address
+// reads as 0.
+func (m *Memory) Read(addr uint16) uint32 {
 	if int(addr) >= len(m.words) {
 		return 0
 	}
-	return math.Float32frombits(m.words[addr])
+	return m.words[addr]
+}
+
+// ReadFloat32 reinterprets the word at addr as an IEEE-754 float32.
+func (m *Memory) ReadFloat32(addr uint16) float32 {
+	return math.Float32frombits(m.Read(addr))
 }
 
 // WriteFloat32 stores v at addr as its raw IEEE-754 bit pattern - the

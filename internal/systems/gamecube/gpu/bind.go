@@ -1,8 +1,10 @@
+// bind.go decodes LOAD_BP_REG writes at a small set of BP addresses
+// this project reserves for texture binding and TEV configuration -
+// see commands.go's package doc for why XF-side binding (matrix
+// selection) goes through real registers instead, in xf/registers.go.
 package gpu
 
 import (
-	"math"
-
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/texture"
 	"github.com/Duc-inc/espaze/internal/systems/gamecube/xf"
 )
@@ -63,6 +65,21 @@ func (cp *CommandProcessor) applyBPRegisterWrite(reg byte) {
 	cp.rebindTexture(slot)
 }
 
+// bridgeMatrixSelectionToXF forwards CP's MATIDX_REG_A straight into
+// the real XF matrix-selection register. Both registers share the
+// exact same 6-bit-field layout (vcd.go's MatIdxRegA doc comment), so
+// a direct value copy decodes correctly on the XF side without
+// reinterpreting the bits - but the copy itself is Espaze's own
+// bridge, not a claim about real hardware's internal wiring between
+// CP and XF, which this project hasn't verified against a public
+// source or homebrew test. Espaze mirrors this value into XF state
+// for now so vertices without a per-vertex matrix-index override
+// (vertexformat.go) pick up whatever CP last set, matching the
+// externally observable effect real games rely on.
+func (cp *CommandProcessor) bridgeMatrixSelectionToXF(val uint32) {
+	cp.xfState.Registers.Write(xf.RegMatrixSelection0, val)
+}
+
 // rebindTexture decodes and binds a texture for the given stage from
 // its current pending state, if there's a memory reader to fetch
 // bytes from and the texture has a real size.
@@ -74,69 +91,4 @@ func (cp *CommandProcessor) rebindTexture(slot int) {
 	length := int(p.width) * int(p.height) * texture.BytesPerTexel(p.format)
 	raw := cp.memReader.ReadBytes(p.addr, length)
 	cp.boundTextures[slot] = texture.New(p.format, raw, int(p.width), int(p.height))
-}
-
-// XF pseudo-register addresses this project reserves within the same
-// LOAD_XF_REG address space real matrix data (memory.go) occupies,
-// set well above any address a matrix upload would realistically use
-// in this project's own address scheme. Ambient/light colors are
-// carried as IEEE-754 float32 bits, the same encoding every other
-// LOAD_XF_REG float value uses; matrix index selectors are plain
-// integers since they're array indices, not color/position data.
-const (
-	xfRegAmbientR = 3000
-	xfRegAmbientG = 3001
-	xfRegAmbientB = 3002
-
-	xfRegPosMatrixIndex    = 3003
-	xfRegNormalMatrixIndex = 3004
-
-	// xfRegLightBase is the first of xf.MaxLights blocks of 8 words
-	// each: pos.x, pos.y, pos.z, color.r, color.g, color.b, enabled,
-	// and one reserved/unused word.
-	xfRegLightBase  = 3100
-	xfRegLightWords = 8
-)
-
-// applyXFRegisterWrite reacts to a LOAD_XF_REG write that already
-// landed in cp.xfMemory, applying any binding-state side effect that
-// address carries in addition to being stored as raw memory.
-func (cp *CommandProcessor) applyXFRegisterWrite(addr uint16, val uint32) {
-	switch {
-	case addr == xfRegAmbientR:
-		cp.ambient.Color.R = math.Float32frombits(val)
-	case addr == xfRegAmbientG:
-		cp.ambient.Color.G = math.Float32frombits(val)
-	case addr == xfRegAmbientB:
-		cp.ambient.Color.B = math.Float32frombits(val)
-	case addr == xfRegPosMatrixIndex:
-		cp.xfRegisters.PosMatrixIndex = uint16(val)
-	case addr == xfRegNormalMatrixIndex:
-		cp.xfRegisters.NormalMatrixIndex = uint16(val)
-	case addr >= xfRegLightBase && addr < xfRegLightBase+xf.MaxLights*xfRegLightWords:
-		cp.applyLightRegisterWrite(addr, val)
-	}
-}
-
-func (cp *CommandProcessor) applyLightRegisterWrite(addr uint16, val uint32) {
-	offset := addr - xfRegLightBase
-	index := int(offset / xfRegLightWords)
-	field := offset % xfRegLightWords
-	l := &cp.lights[index]
-	switch field {
-	case 0:
-		l.Position.X = math.Float32frombits(val)
-	case 1:
-		l.Position.Y = math.Float32frombits(val)
-	case 2:
-		l.Position.Z = math.Float32frombits(val)
-	case 3:
-		l.Color.R = math.Float32frombits(val)
-	case 4:
-		l.Color.G = math.Float32frombits(val)
-	case 5:
-		l.Color.B = math.Float32frombits(val)
-	case 6:
-		l.Enabled = val != 0
-	}
 }
