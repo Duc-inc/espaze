@@ -56,9 +56,15 @@ func (c *CPU) fetch32() uint32 {
 }
 
 // Step decodes and executes exactly one 32-bit instruction, returning
-// an approximate cycle cost.
+// an approximate cycle cost. Also advances the Time Base (registers.go's
+// TB field, read via mftb in opcodes_special.go) by 1 - real hardware
+// increments it at a fixed rate derived from the bus clock, not once
+// per instruction; this project's usual "one Step, one arbitrary unit
+// of time" simplification (already used for VI/AI in the gamecube
+// package) applies here too.
 func (c *CPU) Step() int {
 	op := c.fetch32()
+	c.regs.TB++
 	primary := op >> 26
 
 	if fn, ok := primaryTable[primary]; ok {

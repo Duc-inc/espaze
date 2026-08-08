@@ -66,6 +66,14 @@ type registers struct {
 	MSR  uint32
 	SRR0 uint32
 	SRR1 uint32
+
+	// TB is the real Time Base: a 64-bit free-running counter, advanced
+	// once per CPU.Step (see cpu.go's own doc comment on that
+	// simplification), readable via mftb (opcodes_special.go) - real
+	// code's usual way to measure elapsed time (profiling, animation,
+	// random seeding), since this project has no real bus-clock rate to
+	// derive real time units from.
+	TB uint64
 }
 
 // XER bit positions.

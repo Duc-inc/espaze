@@ -71,6 +71,16 @@ func init() {
 		c.regs.GPR[fieldRD(instr)] = c.regs.CR
 		return 2
 	})
+	setExt31(371, func(c *CPU, instr uint32) int { // mftb
+		rD := fieldRD(instr)
+		switch sprField(instr) { // same split-field layout as mfspr's SPR, real hardware's TBR
+		case 268: // TBL
+			c.regs.GPR[rD] = uint32(c.regs.TB)
+		case 269: // TBU
+			c.regs.GPR[rD] = uint32(c.regs.TB >> 32)
+		}
+		return 2
+	})
 
 	setPrimary(17, func(c *CPU, instr uint32) int { // sc
 		if c.SyscallHandler != nil {
