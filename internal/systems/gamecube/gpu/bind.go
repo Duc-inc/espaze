@@ -80,6 +80,14 @@ func (cp *CommandProcessor) bridgeMatrixSelectionToXF(val uint32) {
 	cp.xfState.Registers.Write(xf.RegMatrixSelection0, val)
 }
 
+// bridgeMatrixSelection1ToXF mirrors bridgeMatrixSelectionToXF for CP's
+// MATIDX_REG_B / XF's RegMatrixSelection1 pair (texture matrix indices
+// 4-7) - same reasoning, same caveat about this being Espaze's own
+// bridge rather than a verified real wiring fact.
+func (cp *CommandProcessor) bridgeMatrixSelection1ToXF(val uint32) {
+	cp.xfState.Registers.Write(xf.RegMatrixSelection1, val)
+}
+
 // rebindTexture decodes and binds a texture for the given stage from
 // its current pending state, if there's a memory reader to fetch
 // bytes from and the texture has a real size.

@@ -47,6 +47,7 @@ func (cp *CommandProcessor) applyCPRegisterWrite(reg byte, val uint32) {
 		cp.bridgeMatrixSelectionToXF(val)
 	case reg == cpMatIdxRegB:
 		cp.matIdxB = MatIdxRegB(val)
+		cp.bridgeMatrixSelection1ToXF(val)
 	case reg >= cpVCDLoBase && reg < cpVCDLoBase+8:
 		cp.vcdLo[reg-cpVCDLoBase] = VCDLo(val)
 	case reg >= cpVCDHiBase && reg < cpVCDHiBase+8:

@@ -131,6 +131,15 @@ func TestPerVertexMatrixIndexOverridesRegisterSelection(t *testing.T) {
 	}
 }
 
+func TestMatIdxRegBBridgesToRealXFMatrixSelection1(t *testing.T) {
+	cp := New()
+	cp.Execute(loadCPRegBytes(cpMatIdxRegB, 5)) // Tex4Index = 5
+
+	if got, want := cp.xfState.Registers.MatrixSelection1.Texture4Index(), uint32(5); got != want {
+		t.Fatalf("MatrixSelection1.Texture4Index() = %d, want %d", got, want)
+	}
+}
+
 func TestMatIdxRegABridgesToRealXFMatrixSelection(t *testing.T) {
 	cp := New()
 	translate := []float32{
