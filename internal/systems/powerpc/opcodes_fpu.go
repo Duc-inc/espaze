@@ -115,6 +115,54 @@ func init() {
 		return 20
 	})
 
+	// Fused multiply-add family (A-form, frA*frC +/- frB, optionally
+	// negated) - standard PowerPC ISA instructions computed as one
+	// rounding step on real hardware; this project computes them as two
+	// separate Go float64 operations, an acceptable simplification for
+	// the tiny last-bit rounding difference that introduces.
+	setExt63A(29, func(c *CPU, instr uint32) int { // fmadd
+		frD, frA, frB, frC := fieldRD(instr), fieldRA(instr), fieldRB(instr), fieldFRC(instr)
+		c.regs.FPR[frD] = c.regs.FPR[frA]*c.regs.FPR[frC] + c.regs.FPR[frB]
+		return 4
+	})
+	setExt63A(28, func(c *CPU, instr uint32) int { // fmsub
+		frD, frA, frB, frC := fieldRD(instr), fieldRA(instr), fieldRB(instr), fieldFRC(instr)
+		c.regs.FPR[frD] = c.regs.FPR[frA]*c.regs.FPR[frC] - c.regs.FPR[frB]
+		return 4
+	})
+	setExt63A(31, func(c *CPU, instr uint32) int { // fnmadd
+		frD, frA, frB, frC := fieldRD(instr), fieldRA(instr), fieldRB(instr), fieldFRC(instr)
+		c.regs.FPR[frD] = -(c.regs.FPR[frA]*c.regs.FPR[frC] + c.regs.FPR[frB])
+		return 4
+	})
+	setExt63A(30, func(c *CPU, instr uint32) int { // fnmsub
+		frD, frA, frB, frC := fieldRD(instr), fieldRA(instr), fieldRB(instr), fieldFRC(instr)
+		c.regs.FPR[frD] = -(c.regs.FPR[frA]*c.regs.FPR[frC] - c.regs.FPR[frB])
+		return 4
+	})
+	// Primary 59: single-precision counterparts, same rounding pattern
+	// as fadds/fsubs/fmuls/fdivs above.
+	setExt59A(29, func(c *CPU, instr uint32) int { // fmadds
+		frD, frA, frB, frC := fieldRD(instr), fieldRA(instr), fieldRB(instr), fieldFRC(instr)
+		c.regs.FPR[frD] = float64(float32(c.regs.FPR[frA]*c.regs.FPR[frC] + c.regs.FPR[frB]))
+		return 4
+	})
+	setExt59A(28, func(c *CPU, instr uint32) int { // fmsubs
+		frD, frA, frB, frC := fieldRD(instr), fieldRA(instr), fieldRB(instr), fieldFRC(instr)
+		c.regs.FPR[frD] = float64(float32(c.regs.FPR[frA]*c.regs.FPR[frC] - c.regs.FPR[frB]))
+		return 4
+	})
+	setExt59A(31, func(c *CPU, instr uint32) int { // fnmadds
+		frD, frA, frB, frC := fieldRD(instr), fieldRA(instr), fieldRB(instr), fieldFRC(instr)
+		c.regs.FPR[frD] = float64(float32(-(c.regs.FPR[frA]*c.regs.FPR[frC] + c.regs.FPR[frB])))
+		return 4
+	})
+	setExt59A(30, func(c *CPU, instr uint32) int { // fnmsubs
+		frD, frA, frB, frC := fieldRD(instr), fieldRA(instr), fieldRB(instr), fieldFRC(instr)
+		c.regs.FPR[frD] = float64(float32(-(c.regs.FPR[frA]*c.regs.FPR[frC] - c.regs.FPR[frB])))
+		return 4
+	})
+
 	setExt63(0, func(c *CPU, instr uint32) int { // fcmpu
 		a, b := c.regs.FPR[fieldRA(instr)], c.regs.FPR[fieldRB(instr)]
 		var field uint32

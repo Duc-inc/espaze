@@ -108,6 +108,49 @@ func TestSinglePrecisionArithmeticRoundsToFloat32(t *testing.T) {
 	}
 }
 
+func TestFusedMultiplyAddFamily(t *testing.T) {
+	// fmadd/fmsub/fnmadd/fnmsub f_,f1,f2(frC),f3(frB) - A-form field
+	// order is frD(21) frA(16) frB(11) frC(6) xo(1).
+	fmadd := uint32(63)<<26 | 4<<21 | 1<<16 | 3<<11 | 2<<6 | 29<<1
+	fmsub := uint32(63)<<26 | 5<<21 | 1<<16 | 3<<11 | 2<<6 | 28<<1
+	fnmadd := uint32(63)<<26 | 6<<21 | 1<<16 | 3<<11 | 2<<6 | 31<<1
+	fnmsub := uint32(63)<<26 | 7<<21 | 1<<16 | 3<<11 | 2<<6 | 30<<1
+	c, _ := newTestCPU([]uint32{fmadd, fmsub, fnmadd, fnmsub})
+	c.regs.FPR[1] = 2.0 // frA
+	c.regs.FPR[2] = 3.0 // frC
+	c.regs.FPR[3] = 1.0 // frB
+
+	c.Step()
+	if c.regs.FPR[4] != 7.0 { // 2*3+1
+		t.Fatalf("FPR4 (fmadd) = %v, want 7.0", c.regs.FPR[4])
+	}
+	c.Step()
+	if c.regs.FPR[5] != 5.0 { // 2*3-1
+		t.Fatalf("FPR5 (fmsub) = %v, want 5.0", c.regs.FPR[5])
+	}
+	c.Step()
+	if c.regs.FPR[6] != -7.0 { // -(2*3+1)
+		t.Fatalf("FPR6 (fnmadd) = %v, want -7.0", c.regs.FPR[6])
+	}
+	c.Step()
+	if c.regs.FPR[7] != -5.0 { // -(2*3-1)
+		t.Fatalf("FPR7 (fnmsub) = %v, want -5.0", c.regs.FPR[7])
+	}
+}
+
+func TestFusedMultiplyAddSinglePrecisionFamily(t *testing.T) {
+	fmadds := uint32(59)<<26 | 4<<21 | 1<<16 | 3<<11 | 2<<6 | 29<<1
+	c, _ := newTestCPU([]uint32{fmadds})
+	c.regs.FPR[1] = 2.0
+	c.regs.FPR[2] = 3.0
+	c.regs.FPR[3] = 1.0
+
+	c.Step()
+	if c.regs.FPR[4] != 7.0 {
+		t.Fatalf("FPR4 (fmadds) = %v, want 7.0", c.regs.FPR[4])
+	}
+}
+
 func TestFloatCompareSetsConditionRegister(t *testing.T) {
 	// fcmpu cr0,f1,f2 (ext63=0)
 	fcmpu := uint32(63)<<26 | 0<<21 | 1<<16 | 2<<11
