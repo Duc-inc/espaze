@@ -163,6 +163,39 @@ func init() {
 		return 4
 	})
 
+	setExt63(12, func(c *CPU, instr uint32) int { // frsp: round double to single precision
+		c.regs.FPR[fieldRD(instr)] = float64(float32(c.regs.FPR[fieldRB(instr)]))
+		return 4
+	})
+	setExt63A(23, func(c *CPU, instr uint32) int { // fsel frD,frA,frC,frB: (frA>=0.0) ? frC : frB
+		frD, frA, frB, frC := fieldRD(instr), fieldRA(instr), fieldRB(instr), fieldFRC(instr)
+		if c.regs.FPR[frA] >= 0 {
+			c.regs.FPR[frD] = c.regs.FPR[frC]
+		} else {
+			c.regs.FPR[frD] = c.regs.FPR[frB]
+		}
+		return 4
+	})
+	setExt63(15, func(c *CPU, instr uint32) int { // fctiwz: convert to integer, truncate toward zero
+		// Real hardware packs the result into the FPR's low 32 bits with
+		// an implementation-specific high-word fill this project doesn't
+		// claim to reproduce exactly; the low word (what a real stfd+lwz
+		// pair, the standard way compiled code reads this result, would
+		// see) is correct.
+		v := c.regs.FPR[fieldRB(instr)]
+		var i int32
+		switch {
+		case v >= 2147483647:
+			i = 2147483647
+		case v <= -2147483648:
+			i = -2147483648
+		default:
+			i = int32(v)
+		}
+		c.regs.FPR[fieldRD(instr)] = math.Float64frombits(uint64(uint32(i)))
+		return 4
+	})
+
 	setExt63(0, func(c *CPU, instr uint32) int { // fcmpu
 		a, b := c.regs.FPR[fieldRA(instr)], c.regs.FPR[fieldRB(instr)]
 		var field uint32

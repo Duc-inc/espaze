@@ -1,6 +1,9 @@
 package powerpc
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func TestFloatLoadStoreDoubleRoundTrip(t *testing.T) {
 	// stfd f1,0x100(r0) requires f1 preloaded via direct register poke
@@ -148,6 +151,66 @@ func TestFusedMultiplyAddSinglePrecisionFamily(t *testing.T) {
 	c.Step()
 	if c.regs.FPR[4] != 7.0 {
 		t.Fatalf("FPR4 (fmadds) = %v, want 7.0", c.regs.FPR[4])
+	}
+}
+
+func TestFrspRoundsToSinglePrecision(t *testing.T) {
+	frsp := uint32(63)<<26 | 2<<21 | 0<<16 | 1<<11 | 12<<1
+	c, _ := newTestCPU([]uint32{frsp})
+	c.regs.FPR[1] = 1.0 / 3.0
+
+	c.Step()
+
+	want := float64(float32(1.0 / 3.0))
+	if c.regs.FPR[2] != want {
+		t.Fatalf("FPR2 = %v, want %v (rounded through float32)", c.regs.FPR[2], want)
+	}
+}
+
+func TestFselPicksBasedOnSign(t *testing.T) {
+	// fsel f4,f1,f3,f2: frA=1(test), frC=3(if>=0), frB=2(if<0).
+	fsel := uint32(63)<<26 | 4<<21 | 1<<16 | 2<<11 | 3<<6 | 23<<1
+	c, _ := newTestCPU([]uint32{fsel, fsel})
+	c.regs.FPR[2] = 100 // frB
+	c.regs.FPR[3] = 200 // frC
+
+	c.regs.FPR[1] = 1.0 // frA >= 0
+	c.Step()
+	if c.regs.FPR[4] != 200 {
+		t.Fatalf("FPR4 (frA>=0) = %v, want 200 (frC)", c.regs.FPR[4])
+	}
+
+	c.regs.FPR[1] = -1.0 // frA < 0
+	c.regs.PC = 0        // re-run the same instruction
+	c.Step()
+	if c.regs.FPR[4] != 100 {
+		t.Fatalf("FPR4 (frA<0) = %v, want 100 (frB)", c.regs.FPR[4])
+	}
+}
+
+func TestFctiwzTruncatesTowardZero(t *testing.T) {
+	fctiwz := uint32(63)<<26 | 2<<21 | 0<<16 | 1<<11 | 15<<1
+	c, _ := newTestCPU([]uint32{fctiwz})
+	c.regs.FPR[1] = 3.9
+
+	c.Step()
+
+	got := int32(math.Float64bits(c.regs.FPR[2]))
+	if got != 3 {
+		t.Fatalf("truncated int = %d, want 3", got)
+	}
+}
+
+func TestFctiwzClampsOutOfRangeValues(t *testing.T) {
+	fctiwz := uint32(63)<<26 | 2<<21 | 0<<16 | 1<<11 | 15<<1
+	c, _ := newTestCPU([]uint32{fctiwz})
+	c.regs.FPR[1] = 1e20
+
+	c.Step()
+
+	got := int32(math.Float64bits(c.regs.FPR[2]))
+	if got != 2147483647 {
+		t.Fatalf("clamped int = %d, want 2147483647", got)
 	}
 }
 
