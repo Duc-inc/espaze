@@ -31,6 +31,38 @@ func OSReport(log *ReportLog) Func {
 // with a completion callback; this project's simplification is a
 // direct, synchronous, offset-based read, closer to how disc.Header/
 // disc.FST already expose file locations as plain offsets.
+// Memcpy returns an HLE stand-in for the standard C memcpy(dest, src,
+// n): copies n bytes from src to dest and returns dest in GPR3, the
+// PowerPC/PowerOpen calling convention's argument/return registers -
+// GPR3/GPR4/GPR5 for dest/src/n. This is a generic C library function,
+// not anything Nintendo-SDK-specific, so unlike OSReport/DVDRead its
+// behavior isn't a simplification of anything - it's the real
+// contract, just implemented directly in Go instead of interpreting
+// compiled library code.
+func Memcpy() Func {
+	return func(cpu *powerpc.CPU, mem MemoryAccess) {
+		dest, src, n := cpu.GPR(3), cpu.GPR(4), cpu.GPR(5)
+		for i := uint32(0); i < n; i++ {
+			mem.Write8(dest+i, mem.Read8(src+i))
+		}
+		cpu.SetGPR(3, dest)
+	}
+}
+
+// Memset returns an HLE stand-in for the standard C memset(dest, val,
+// n): fills n bytes at dest with val's low byte and returns dest in
+// GPR3 - GPR3/GPR4/GPR5 for dest/val/n, matching the real calling
+// convention like Memcpy.
+func Memset() Func {
+	return func(cpu *powerpc.CPU, mem MemoryAccess) {
+		dest, val, n := cpu.GPR(3), byte(cpu.GPR(4)), cpu.GPR(5)
+		for i := uint32(0); i < n; i++ {
+			mem.Write8(dest+i, val)
+		}
+		cpu.SetGPR(3, dest)
+	}
+}
+
 func DVDRead(image []byte) Func {
 	return func(cpu *powerpc.CPU, mem MemoryAccess) {
 		dest, length, offset := cpu.GPR(3), cpu.GPR(4), cpu.GPR(5)

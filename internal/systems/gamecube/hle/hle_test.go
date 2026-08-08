@@ -105,6 +105,46 @@ func TestDVDReadStopsAtImageBoundary(t *testing.T) {
 	}
 }
 
+func TestMemcpyCopiesBytes(t *testing.T) {
+	mem := memory.New()
+	cpu := powerpc.New(mem)
+	mem.Write32(0x1000, 0xDEADBEEF)
+
+	cpu.SetGPR(3, 0x2000) // dest
+	cpu.SetGPR(4, 0x1000) // src
+	cpu.SetGPR(5, 4)      // n
+
+	Memcpy()(cpu, mem)
+
+	if cpu.GPR(3) != 0x2000 {
+		t.Fatalf("GPR3 (return value) = %#x, want 0x2000 (dest)", cpu.GPR(3))
+	}
+	if got := mem.Read32(0x2000); got != 0xDEADBEEF {
+		t.Fatalf("copied word = %#08x, want 0xdeadbeef", got)
+	}
+}
+
+func TestMemsetFillsBytes(t *testing.T) {
+	mem := memory.New()
+	cpu := powerpc.New(mem)
+
+	cpu.SetGPR(3, 0x2000) // dest
+	cpu.SetGPR(4, 0xAB)   // val
+	cpu.SetGPR(5, 3)      // n
+
+	Memset()(cpu, mem)
+
+	if cpu.GPR(3) != 0x2000 {
+		t.Fatalf("GPR3 (return value) = %#x, want 0x2000 (dest)", cpu.GPR(3))
+	}
+	if mem.Read8(0x2000) != 0xAB || mem.Read8(0x2001) != 0xAB || mem.Read8(0x2002) != 0xAB {
+		t.Fatal("expected 3 bytes at dest filled with 0xAB")
+	}
+	if mem.Read8(0x2003) != 0 {
+		t.Fatal("expected byte past n to stay untouched")
+	}
+}
+
 func writeCString(mem MemoryAccess, addr uint32, s string) {
 	for i := 0; i < len(s); i++ {
 		mem.Write8(addr+uint32(i), s[i])
